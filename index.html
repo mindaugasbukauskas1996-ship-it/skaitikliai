@@ -37,6 +37,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .addr-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
 .addr-icon.elec{background:#fef9c3;}
 .addr-icon.water{background:#dbeafe;}
+.addr-icon.heat{background:#fee2e2;}
 .addr-name{font-size:1rem;font-weight:700;color:var(--text);}
 .addr-sub{font-size:.75rem;color:var(--muted);margin-top:2px;}
 .addr-prog{margin-left:auto;text-align:right;}
@@ -267,6 +268,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <button class="gen-btn" onclick="generateReport()">&#128202; Generuoti ataskaitą</button>
+      <button class="gen-btn" style="background:#16a34a;margin-top:8px;" onclick="exportXLS()">&#128196; Eksportuoti šilumos XLS (originali forma)</button>
     </div>
     <div id="rep-output"></div>
   </div>
@@ -403,22 +405,27 @@ async function loadAddresses() {
   }
 }
 
+function addrMeta(name) {
+  const n = (name||'').toLowerCase();
+  if (n.includes('žemaitės g. 6')) return {icon:'⚡', type:'elec', sub:'Elektra (butai)'};
+  if (n.includes('karališkių')) return {icon:'🔥', type:'water', sub:'Karštas vanduo (butai)'};
+  return {icon:'🌡️', type:'heat', sub:'Šilumos skaitiklis'};
+}
 function renderAddresses() {
-  const icons = { 1:'⚡', 2:'🔥', 3:'🔥' };
-  const types = { 1:'elec', 2:'water', 3:'water' };
-  const subtitles = { 1:'Elektra (dieninis + naktinis)', 2:'Karštas vanduo', 3:'Karštas vanduo' };
-  document.getElementById('addr-grid').innerHTML = addresses.map(a => `
-    <div class="addr-card" onclick="selectAddr(${a.id})">
-      <div class="addr-icon ${types[a.id]||'elec'}">${icons[a.id]||'📍'}</div>
+  document.getElementById('addr-grid').innerHTML = addresses.map(a => {
+    const m = addrMeta(a.name);
+    return `<div class="addr-card" onclick="selectAddr(${a.id})">
+      <div class="addr-icon ${m.type}">${m.icon}</div>
       <div>
         <div class="addr-name">${a.name}</div>
-        <div class="addr-sub">${subtitles[a.id]||'Skaitikliai'}</div>
+        <div class="addr-sub">${m.sub}</div>
       </div>
       <div class="addr-prog">
         <div class="ap-num" id="ap-${a.id}">—</div>
         <div class="ap-lbl">atlikta</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── SELECT ADDRESS ──
@@ -485,6 +492,7 @@ function renderCards() {
   apartments.forEach(apt => {
     const aptMeters = meters.filter(m=>m.apartment_id===apt.id);
     const isElec = aptMeters.some(m=>m.meter_types.code.startsWith('electricity'));
+    const isHeat = aptMeters.some(m=>m.meter_types.code.startsWith('heat_'));
     const isSaved = aptMeters.every(m=>curReadings[m.id]);
     const card = document.createElement('div');
     card.className='card'+(isSaved?' saved':'');
@@ -502,7 +510,33 @@ function renderCards() {
     // body
     let bodyHtml='<div class="cbody">';
 
-    if (isElec) {
+    if (isHeat) {
+      const mwhM = aptMeters.find(m=>m.meter_types.code==='heat_mwh');
+      const m3M  = aptMeters.find(m=>m.meter_types.code==='heat_m3');
+      const hM   = aptMeters.find(m=>m.meter_types.code==='heat_h');
+      const wM   = aptMeters.find(m=>m.meter_types.code==='water_m3');
+      bodyHtml += `<div class="dsec-lbl" style="margin-bottom:6px;">🌡️ Šilumos skaitiklis (Nr. ${mwhM?.meter_serial||''})</div>`;
+      [{m:mwhM,label:'MWh/kWh',emoji:'🌡️'},{m:m3M,label:'m³',emoji:'💧'},{m:hM,label:'val',emoji:'⏱'}].forEach(({m,label,emoji})=>{
+        if (!m) return;
+        const prev=prevReadings[m.id]??'—'; const curr=curReadings[m.id];
+        bodyHtml+=`<div class="single-row" style="margin-bottom:7px;">
+          <div class="fld"><label>${emoji} NUO (${label})</label><input class="pf" type="number" id="nuo-${m.id}" value="${prev}" readonly/></div>
+          <div class="fld"><label>IKI ✏</label><input type="number" id="iki-${m.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${isSaved?'disabled':''} oninput="calcChip(${m.id},${apt.id})"/></div>
+          <div class="chip cz" id="chip-${m.id}">—</div>
+        </div>`;
+        if (curr) calcChip(m.id, apt.id, true);
+      });
+      if (wM) {
+        const prev=prevReadings[wM.id]??'—'; const curr=curReadings[wM.id];
+        bodyHtml+=`<div class="dsec-lbl" style="margin:8px 0 5px;">💧 Vanduo prieš boilerį (Nr. ${wM.meter_serial||''})</div>
+        <div class="single-row" style="margin-bottom:7px;">
+          <div class="fld"><label>NUO (m³)</label><input class="pf" type="number" id="nuo-${wM.id}" value="${prev}" readonly/></div>
+          <div class="fld"><label>IKI ✏</label><input type="number" id="iki-${wM.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${isSaved?'disabled':''} oninput="calcChip(${wM.id},${apt.id})"/></div>
+          <div class="chip cz" id="chip-${wM.id}">—</div>
+        </div>`;
+        if (curr) calcChip(wM.id, apt.id, true);
+      }
+    } else if (isElec) {
       // show last bendras
       const dayM = aptMeters.find(m=>m.meter_types.code==='electricity_day');
       const nightM = aptMeters.find(m=>m.meter_types.code==='electricity_night');
@@ -749,7 +783,69 @@ function exportCSV(rows) {
   showT('CSV eksportuotas!','ok');
 }
 
-// ── TABS ──
+// ── EXPORT XLS (original format) ──
+async function exportXLS() {
+  const addrId = document.getElementById('rep-addr').value;
+  const period = document.getElementById('rep-period').value;
+  if (!period) { showT('Pasirinkite mėnesį!','er'); return; }
+  const [y,m] = period.split('-').map(Number);
+  const menNames = ['','sausio','vasario','kovo','balandžio','gegužės','birželio','liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];
+  const menLabel = `${y} m. ${menNames[m]||m} mėn.`;
+
+  let addrsToShow = addrId ? addresses.filter(a=>a.id==addrId) : addresses;
+  // filter only heating addresses
+  addrsToShow = addrsToShow.filter(a => {
+    const meta = addrMeta(a.name);
+    return meta.type === 'heat';
+  });
+  if (!addrsToShow.length) { showT('Nėra šilumos skaitiklių!','er'); return; }
+
+  // Build one big CSV that mimics the XLS format
+  let allCsv = '';
+  for (const addr of addrsToShow) {
+    const apts = await sbFetch(`apartments?select=id,number,tenant_name&address_id=eq.${addr.id}&order=number`);
+    if (!apts.length) continue;
+    const ms = await sbFetch(`meters?select=id,apartment_id,meter_type_id,meter_serial,meter_types(code,label,unit)&apartment_id=in.(${apts.map(a=>a.id).join(',')})`);
+    const mIds = ms.map(m=>m.id).join(',');
+    const readings = await sbFetch(`readings?select=meter_id,value_from,value_to,consumption,note&meter_id=in.(${mIds})&period=eq.${period}`);
+    const readMap={};
+    readings.forEach(r=>readMap[r.meter_id]=r);
+
+    const apt = apts[0];
+    const mwhM = ms.find(m=>m.meter_types.code==='heat_mwh');
+    const m3M  = ms.find(m=>m.meter_types.code==='heat_m3');
+    const hM   = ms.find(m=>m.meter_types.code==='heat_h');
+    const wM   = ms.find(m=>m.meter_types.code==='water_m3');
+
+    allCsv += `UAB "Mano Būstas Vakarai"\n`;
+    allCsv += `${addr.name}\n`;
+    allCsv += `APSKAITOS PRIETAISŲ PARODYMAI ${menLabel}\n`;
+    allCsv += `\n`;
+    allCsv += `Prietaiso pavadinimas;Mat. vnt.;mėn. pradž.;mėn. gale;skirtumas;Pastabos\n`;
+
+    const serial = mwhM?.meter_serial || '';
+    const rMwh = readMap[mwhM?.id];
+    const rM3  = readMap[m3M?.id];
+    const rH   = readMap[hM?.id];
+    const rW   = readMap[wM?.id];
+
+    allCsv += `Šilumos skaitiklis Gamykl. Nr. ${serial};MWh/kWh;${rMwh?rMwh.value_from:''};${rMwh?rMwh.value_to:''};${rMwh?Number(rMwh.consumption):''};${rMwh?rMwh.note||'':''}\n`;
+    allCsv += `;m3;${rM3?rM3.value_from:''};${rM3?rM3.value_to:''};${rM3?Number(rM3.consumption):''}\n`;
+    allCsv += `;val;${rH?rH.value_from:''};${rH?rH.value_to:''};${rH?Number(rH.consumption):''}\n`;
+    if (wM) {
+      const wSerial = wM.meter_serial||'';
+      allCsv += `Vandens skaitiklis prieš boilerį gamyklinis nr. ${wSerial};m3;${rW?rW.value_from:''};${rW?rW.value_to:''};${rW?Number(rW.consumption):''}\n`;
+    }
+    allCsv += `\nDuomenų fiksavimo data: ${new Date().toLocaleDateString('lt-LT')}\n`;
+    allCsv += `\n---\n\n`;
+  }
+
+  const b=new Blob(['\uFEFF'+allCsv],{type:'text/csv;charset=utf-8;'});
+  const u=URL.createObjectURL(b);
+  const a=document.createElement('a');
+  a.href=u; a.download=`siluma_${period}.csv`; a.click();
+  showT('XLS eksportuotas!','ok');
+}
 function switchTab(tab) {
   ['home','report','config'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('on',t===tab);

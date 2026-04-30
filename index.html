@@ -454,7 +454,7 @@ async function loadFill() {
   curReadings={};
   try {
     // get apartments + meters
-    apartments = await sbFetch(`apartments?select=id,number,tenant_name&address_id=eq.${curAddr.id}&order=number`);
+    apartments = await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${curAddr.id}&order=number`);
     meters = await sbFetch(`meters?select=id,apartment_id,meter_type_id,meter_types(code,label,unit)&apartment_id=in.(${apartments.map(a=>a.id).join(',')})`);
 
     // get prev period
@@ -500,10 +500,11 @@ function renderCards() {
     card.dataset.name=(apt.tenant_name||'').toLowerCase()+' '+apt.number;
     card.dataset.apt=apt.id;
 
+    const aptLabel = apt.apt_label || apt.number;
     // header
     let headHtml=`<div class="ch">
-      <div class="nbox" id="nb-${apt.id}">${apt.number}</div>
-      <div class="cname">${apt.tenant_name||'Butas '+apt.number}</div>
+      <div class="nbox" id="nb-${apt.id}">${aptLabel}</div>
+      <div class="cname">${apt.tenant_name||'Butas '+aptLabel}</div>
       <div class="cbdg ${isSaved?'d':'p'}" id="bdg-${apt.id}">${isSaved?'✓ Atlikta':'Laukia'}</div>
     </div>`;
 
@@ -720,7 +721,7 @@ async function generateReport() {
     let csvRows=[['Adresas','Butas','Abonento vardas','Skaitiklio tipas','NUO','IKI','Suvartota','Vnt.','Pastabos']];
 
     for (const addr of addrsToShow) {
-      const apts = await sbFetch(`apartments?select=id,number,tenant_name&address_id=eq.${addr.id}&order=number`);
+      const apts = await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${addr.id}&order=number`);
       if (!apts.length) continue;
       const aptIds = apts.map(a=>a.id).join(',');
       const ms = await sbFetch(`meters?select=id,apartment_id,meter_types(code,label,unit)&apartment_id=in.(${aptIds})`);
@@ -742,8 +743,9 @@ async function generateReport() {
           csvRows.push([addr.name, apt.number, apt.tenant_name||'', m.meter_types.label, r?r.value_from:'', r?r.value_to:'', cons!==null?cons:'', m.meter_types.unit, r?r.note||'':'Nenurašyta']);
         });
         const isMissing=aptMs.some(m=>!readMap[m.id]);
+        const aptDisp = apt.apt_label || apt.number;
         rows+=`<tr>
-          <td><b>${apt.number}</b></td>
+          <td><b>${aptDisp}</b></td>
           <td>${apt.tenant_name||'—'}</td>
           ${aptMs.map(m=>{const r=readMap[m.id]; return `<td>${r?r.value_from:'<span class="missing">—</span>'}</td><td>${r?r.value_to:'<span class="missing">—</span>'}</td><td>${r?Number(r.consumption):'<span class="missing">—</span>'}</td>`;}).join('')}
           <td>${isMissing?'<span class="missing">Nenurašyta</span>':readMap[aptMs[0]?.id]?.note||''}</td>
@@ -803,7 +805,7 @@ async function exportXLS() {
   // Build one big CSV that mimics the XLS format
   let allCsv = '';
   for (const addr of addrsToShow) {
-    const apts = await sbFetch(`apartments?select=id,number,tenant_name&address_id=eq.${addr.id}&order=number`);
+    const apts = await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${addr.id}&order=number`);
     if (!apts.length) continue;
     const ms = await sbFetch(`meters?select=id,apartment_id,meter_type_id,meter_serial,meter_types(code,label,unit)&apartment_id=in.(${apts.map(a=>a.id).join(',')})`);
     const mIds = ms.map(m=>m.id).join(',');

@@ -143,6 +143,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .spinner{width:28px;height:28px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
+/* ── PIN SCREEN ── */
+#view-pin{position:fixed;inset:0;background:#111827;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;}
+#view-pin.hidden{display:none;}
+.pin-logo{font-size:2.5rem;margin-bottom:8px;}
+.pin-title{color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:4px;}
+.pin-sub{color:#9ca3af;font-size:.78rem;margin-bottom:32px;}
+.pin-dots{display:flex;gap:14px;margin-bottom:32px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;background:#374151;transition:background .15s;}
+.pin-dot.filled{background:#3b82f6;}
+.pin-dot.err{background:#dc2626;}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:240px;}
+.pin-btn{height:64px;border:none;border-radius:14px;background:#1f2937;color:#fff;font-size:1.4rem;font-weight:600;cursor:pointer;transition:background .1s,transform .1s;}
+.pin-btn:active{background:#374151;transform:scale(.95);}
+.pin-btn.del{font-size:1.1rem;background:#1f2937;}
+.pin-btn.empty{background:transparent;cursor:default;}
+.pin-shake{animation:shake .3s;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
 /* ── CONFIG SCREEN ── */
 #view-config{display:none;}
 #view-config.active{display:block;}
@@ -166,6 +184,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 </head>
 <body>
+
+<!-- PIN SCREEN -->
+<div id="view-pin">
+  <div class="pin-logo">🔒</div>
+  <div class="pin-title">Skaitiklių sistema</div>
+  <div class="pin-sub">Įveskite PIN kodą</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-pad">
+    <button class="pin-btn" onclick="pinPress('1')">1</button>
+    <button class="pin-btn" onclick="pinPress('2')">2</button>
+    <button class="pin-btn" onclick="pinPress('3')">3</button>
+    <button class="pin-btn" onclick="pinPress('4')">4</button>
+    <button class="pin-btn" onclick="pinPress('5')">5</button>
+    <button class="pin-btn" onclick="pinPress('6')">6</button>
+    <button class="pin-btn" onclick="pinPress('7')">7</button>
+    <button class="pin-btn" onclick="pinPress('8')">8</button>
+    <button class="pin-btn" onclick="pinPress('9')">9</button>
+    <button class="pin-btn empty"></button>
+    <button class="pin-btn" onclick="pinPress('0')">0</button>
+    <button class="pin-btn del" onclick="pinDel()">⌫</button>
+  </div>
+</div>
 
 <!-- HEADER -->
 <div class="hdr" id="hdr">
@@ -262,24 +307,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG ──
-let SB_URL = localStorage.getItem('sb_url') || '';
-let SB_KEY  = localStorage.getItem('sb_key') || '';
+// ── CONFIG ── (hardcoded — nereikia įvesti rankiniu būdu)
+const SB_URL = 'https://fkuyazgbjehqppmcmamw.supabase.co';
+const SB_KEY  = 'sb_publishable_PIjTvJ2COG3tG8WDSEguww_SsGFzB2B';
+
+// ── PIN ──
+const CORRECT_PIN = '6699';
+let pinVal = '';
+
+function pinPress(d) {
+  if (pinVal.length >= 4) return;
+  pinVal += d;
+  updatePinDots();
+  if (pinVal.length === 4) {
+    if (pinVal === CORRECT_PIN) {
+      document.getElementById('view-pin').classList.add('hidden');
+      loadAddresses();
+    } else {
+      document.querySelectorAll('.pin-dot').forEach(el=>el.classList.add('err'));
+      document.getElementById('pin-dots').classList.add('pin-shake');
+      setTimeout(()=>{
+        pinVal=''; updatePinDots();
+        document.querySelectorAll('.pin-dot').forEach(el=>el.classList.remove('err'));
+        document.getElementById('pin-dots').classList.remove('pin-shake');
+      }, 700);
+    }
+  }
+}
+
+function pinDel() {
+  pinVal = pinVal.slice(0,-1);
+  updatePinDots();
+}
+
+function updatePinDots() {
+  for (let i=0;i<4;i++) {
+    document.getElementById('pd'+i).classList.toggle('filled', i < pinVal.length);
+  }
+}
 
 function saveConfig() {
-  SB_URL = document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
-  SB_KEY  = document.getElementById('cfg-key').value.trim();
-  if (!SB_URL || !SB_KEY) { showT('Įveskite URL ir raktą!','er'); return; }
-  localStorage.setItem('sb_url', SB_URL);
-  localStorage.setItem('sb_key', SB_KEY);
-  showT('Išsaugota! Bandoma prisijungti...','ok');
-  setTimeout(()=>{ switchTab('home'); loadAddresses(); }, 800);
+  showT('Konfigūracija įrašyta kode','ok');
 }
 
-function loadConfig() {
-  document.getElementById('cfg-url').value = SB_URL;
-  document.getElementById('cfg-key').value = SB_KEY;
-}
+function loadConfig() {}
 
 // ── SUPABASE REST ──
 async function sbFetch(path, opts={}) {
@@ -313,8 +384,7 @@ window.addEventListener('DOMContentLoaded', () => {
   curPeriod = p;
   document.getElementById('period-inp').addEventListener('change', e=>{ curPeriod=e.target.value; loadFill(); });
   loadConfig();
-  if (SB_URL && SB_KEY) loadAddresses();
-  else { switchTab('config'); showT('Pirmiausia sukonfigūruokite Supabase','er'); }
+  // PIN ekranas rodomas automatiškai — loadAddresses() kviečiamas po PIN
 });
 
 // ── ADDRESSES ──

@@ -1,201 +1,147 @@
 <!DOCTYPE html>
+
 <html lang="lt">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Skaitikliai">
+<link rel="manifest" href="manifest.json">
 <title>Skaitiklių sistema</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-:root{
-  --bg:#f0f2f7;--card:#fff;--border:#dde2ef;--text:#111827;--muted:#6b7280;
-  --accent:#2563eb;--green:#16a34a;--red:#dc2626;--amber:#d97706;
-  --inp:#f8faff;--inp-b:#c7d2e8;--radius:10px;
-}
+:root{--bg:#f0f2f7;--card:#fff;--border:#dde2ef;--text:#111827;--muted:#6b7280;--accent:#2563eb;--green:#16a34a;--red:#dc2626;--amber:#d97706;--inp:#f8faff;--inp-b:#c7d2e8;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:72px;}
-
-/* ── HEADER ── */
 .hdr{background:#111827;color:#fff;padding:13px 14px 10px;position:sticky;top:0;z-index:300;box-shadow:0 2px 8px rgba(0,0,0,.3);}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .hdr h1{font-size:.95rem;font-weight:700;line-height:1.2;}
 .hdr .sub{font-size:.68rem;color:#9ca3af;margin-top:1px;}
 .hdr-meta{text-align:right;font-size:.67rem;color:#9ca3af;}
 .hdr-meta strong{display:block;color:#fff;font-size:1.2rem;font-weight:700;line-height:1;}
+.hdr-role{font-size:.6rem;background:#374151;color:#9ca3af;padding:2px 7px;border-radius:10px;margin-top:2px;display:inline-block;}
+.hdr-role.admin{background:#1e3a5f;color:#93c5fd;}
 .prog-track{height:3px;background:#374151;border-radius:2px;margin-top:8px;overflow:hidden;}
 .prog-fill{height:100%;background:#3b82f6;border-radius:2px;transition:width .4s;}
 .prog-lbl{font-size:.62rem;color:#9ca3af;margin-top:2px;text-align:right;}
-
-/* ── VIEWS ── */
-#view-select, #view-report{display:none;}
-#view-select.active, #view-report.active, #view-fill.active{display:block;}
-
-/* ── ADDRESS SELECT SCREEN ── */
+#view-select,#view-report{display:none;}
+#view-select.active,#view-report.active,#view-fill.active{display:block;}
 .addr-grid{display:grid;gap:10px;padding:16px 12px;}
 .addr-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:18px 16px;cursor:pointer;transition:border-color .15s,box-shadow .15s;display:flex;align-items:center;gap:14px;}
 .addr-card:active{transform:scale(.98);}
-.addr-card.done{border-color:#86efac;}
 .addr-card:hover{border-color:#93c5fd;box-shadow:0 2px 12px rgba(37,99,235,.1);}
 .addr-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
-.addr-icon.elec{background:#fef9c3;}
-.addr-icon.water{background:#dbeafe;}
-.addr-icon.heat{background:#fee2e2;}
-.addr-name{font-size:1rem;font-weight:700;color:var(--text);}
-.addr-sub{font-size:.75rem;color:var(--muted);margin-top:2px;}
-.addr-prog{margin-left:auto;text-align:right;}
-.addr-prog .ap-num{font-size:1.1rem;font-weight:700;color:var(--text);}
-.addr-prog .ap-lbl{font-size:.65rem;color:var(--muted);}
-
-/* ── PERIOD BAR ── */
+.addr-icon.elec{background:#fef9c3;}.addr-icon.water{background:#dbeafe;}.addr-icon.heat{background:#fee2e2;}
+.addr-name{font-size:1rem;font-weight:700;}.addr-sub{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.addr-prog{margin-left:auto;text-align:right;}.ap-num{font-size:1.1rem;font-weight:700;}.ap-lbl{font-size:.65rem;color:var(--muted);}
 .period-bar{background:#fff;border-bottom:1px solid var(--border);padding:9px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:66px;z-index:200;}
-.period-bar label{font-size:.75rem;color:var(--muted);font-weight:600;white-space:nowrap;}
-.period-bar input{border:1.5px solid var(--inp-b);border-radius:8px;padding:7px 10px;font-size:.88rem;color:var(--text);background:var(--inp);outline:none;flex:1;}
-.period-bar input:focus{border-color:var(--accent);}
+.period-lbl{font-size:.88rem;font-weight:700;color:var(--text);padding:7px 12px;background:var(--inp);border:1.5px solid var(--inp-b);border-radius:8px;flex:1;}
 .back-btn{display:flex;align-items:center;gap:5px;padding:7px 11px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;font-size:.8rem;font-weight:700;color:var(--text);cursor:pointer;}
-
-/* ── TOOLBAR ── */
 .toolbar{background:#fff;border-bottom:1px solid var(--border);padding:8px 12px;display:flex;gap:6px;position:sticky;top:110px;z-index:199;}
 .toolbar .sw{flex:1;display:flex;align-items:center;background:var(--inp);border:1px solid var(--inp-b);border-radius:8px;padding:0 9px;gap:5px;}
 .toolbar .sw input{flex:1;border:none;background:transparent;outline:none;font-size:.88rem;color:var(--text);padding:8px 0;}
 .tbtn{padding:8px 10px;border:1px solid var(--inp-b);border-radius:8px;background:var(--inp);color:var(--muted);font-size:.74rem;font-weight:700;cursor:pointer;}
 .tbtn.on{background:#111827;color:#fff;border-color:#111827;}
-
-/* ── STATS ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 10px;}
 .sc{background:#fff;border:1px solid var(--border);border-radius:9px;padding:8px 5px;text-align:center;}
-.sc .sv{font-size:1.25rem;font-weight:700;line-height:1;}
-.sc .sl{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
-.sc.bl .sv{color:var(--accent);} .sc.gr .sv{color:var(--green);} .sc.am .sv{color:var(--amber);} .sc.rd .sv{color:var(--red);}
-
-/* ── CARDS ── */
+.sc .sv{font-size:1.25rem;font-weight:700;line-height:1;}.sc .sl{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+.sc.bl .sv{color:var(--accent);}.sc.gr .sv{color:var(--green);}.sc.am .sv{color:var(--amber);}.sc.rd .sv{color:var(--red);}
 .slbl{font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:6px 12px 2px;font-weight:700;}
-.card{background:#fff;border:1px solid var(--border);border-radius:12px;margin:0 10px 8px;overflow:hidden;transition:border-color .15s;}
-.card.saved{border-color:#86efac;} .card.err{border-color:#fca5a5;}
+.card{background:#fff;border:1px solid var(--border);border-radius:12px;margin:0 10px 8px;overflow:hidden;}
+.card.saved{border-color:#86efac;}.card.err{border-color:#fca5a5;}
 .ch{display:flex;align-items:center;gap:9px;padding:10px 12px;background:#f9fafb;border-bottom:1px solid var(--border);}
-.card.saved .ch{background:#f0fdf4;border-bottom-color:#bbf7d0;}
-.card.err .ch{background:#fff1f2;border-bottom-color:#fca5a5;}
-.nbox{width:32px;height:32px;border-radius:7px;background:#111827;color:#fff;font-size:.85rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.card.saved .nbox{background:var(--green);} .card.err .nbox{background:var(--red);}
+.card.saved .ch{background:#f0fdf4;border-bottom-color:#bbf7d0;}.card.err .ch{background:#fff1f2;border-bottom-color:#fca5a5;}
+.nbox{width:32px;height:32px;border-radius:7px;background:#111827;color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.card.saved .nbox{background:var(--green);}.card.err .nbox{background:var(--red);}
 .cname{font-size:.81rem;font-weight:600;flex:1;line-height:1.3;}
 .cbdg{font-size:.65rem;padding:3px 7px;border-radius:20px;font-weight:700;flex-shrink:0;}
-.cbdg.p{background:#fef3c7;color:#92400e;} .cbdg.d{background:#dcfce7;color:#166534;} .cbdg.e{background:#fee2e2;color:#991b1b;}
-
+.cbdg.p{background:#fef3c7;color:#92400e;}.cbdg.d{background:#dcfce7;color:#166534;}.cbdg.e{background:#fee2e2;color:#991b1b;}
 .cbody{padding:11px 12px;}
-
-/* single meter type (water/gas) */
 .single-row{display:grid;grid-template-columns:1fr 1fr 48px;gap:7px;align-items:end;}
-/* dual meter (elec day+night) */
-.dual-sec{margin-bottom:10px;}
-.dsec-lbl{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px;}
+.dual-sec{margin-bottom:10px;}.dsec-lbl{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px;}
 .dual-row{display:grid;grid-template-columns:1fr 1fr 48px;gap:7px;align-items:end;}
-
 .bendras-box{display:flex;justify-content:space-between;align-items:center;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 11px;margin-bottom:9px;}
-.bb-lbl{font-size:.69rem;color:#1d4ed8;font-weight:600;}
-.bb-val{font-size:1rem;font-weight:700;color:#1d4ed8;}
-
+.bb-lbl{font-size:.69rem;color:#1d4ed8;font-weight:600;}.bb-val{font-size:1rem;font-weight:700;color:#1d4ed8;}
 .fld label{display:block;font-size:.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;}
 .fld input{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:10px 9px;font-size:1rem;color:var(--text);background:var(--inp);outline:none;font-family:'Courier New',monospace;-webkit-appearance:none;}
 .fld input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
-.fld input.pf{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}
-.fld input.ei{border-color:var(--red);background:#fff1f2;}
+.fld input.pf{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}.fld input.ei{border-color:var(--red);background:#fff1f2;}
 .chip{font-size:.7rem;padding:0 4px;border-radius:7px;font-weight:700;text-align:center;height:40px;display:flex;align-items:center;justify-content:center;min-width:44px;}
-.cp{background:#dcfce7;color:#166534;} .cn{background:#fee2e2;color:#991b1b;} .cz{background:#f3f4f6;color:#6b7280;}
-
+.cp{background:#dcfce7;color:#166534;}.cn{background:#fee2e2;color:#991b1b;}.cz{background:#f3f4f6;color:#6b7280;}
 .note-inp{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:7px 9px;font-size:.84rem;background:var(--inp);outline:none;font-family:inherit;resize:none;color:var(--text);margin-top:8px;}
 .note-inp:focus{border-color:var(--accent);background:#fff;}
-
 .cf{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-top:1px solid var(--border);background:#fafbff;}
-.tot-lbl{font-size:.7rem;color:var(--muted);}
-.tot-val{font-size:.95rem;font-weight:700;}
+.tot-lbl{font-size:.7rem;color:var(--muted);}.tot-val{font-size:.95rem;font-weight:700;}
 .sbtn{background:#111827;color:#fff;border:none;border-radius:9px;padding:10px 15px;font-size:.84rem;font-weight:700;cursor:pointer;min-height:44px;}
-.sbtn:active{transform:scale(.97);}
-.sbtn.sv{background:var(--green);}
-.sbtn:disabled{background:#9ca3af;cursor:default;}
-
-/* ── REPORT VIEW ── */
+.sbtn:active{transform:scale(.97);}.sbtn.sv{background:var(--green);}.sbtn:disabled{background:#9ca3af;cursor:default;}
+/* ADMIN EDIT */
+.edit-btn{background:#f59e0b;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:.75rem;font-weight:700;cursor:pointer;margin-left:6px;}
+.edit-btn:active{transform:scale(.97);}
+/* REPORT */
 .report-wrap{padding:12px;}
 .report-controls{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;}
 .rc-title{font-size:.85rem;font-weight:700;margin-bottom:10px;}
 .rc-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
-.rc-row.full{grid-template-columns:1fr;}
 .rc-fld label{display:block;font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600;}
-.rc-fld select, .rc-fld input{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:9px 10px;font-size:.88rem;color:var(--text);background:var(--inp);outline:none;}
+.rc-fld select,.rc-fld input{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:9px 10px;font-size:.88rem;color:var(--text);background:var(--inp);outline:none;}
 .gen-btn{width:100%;background:#111827;color:#fff;border:none;border-radius:9px;padding:12px;font-size:.9rem;font-weight:700;cursor:pointer;margin-top:4px;}
 .gen-btn:active{transform:scale(.98);}
-.rep-table-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.rep-table-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;}
 .rep-table-wrap h3{padding:12px 14px;font-size:.85rem;border-bottom:1px solid var(--border);background:#f9fafb;}
 .rep-table{width:100%;border-collapse:collapse;font-size:.78rem;}
 .rep-table th{background:#111827;color:#fff;padding:8px 10px;text-align:left;font-weight:600;white-space:nowrap;}
 .rep-table td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
-.rep-table tr:last-child td{border-bottom:none;}
-.rep-table tr:nth-child(even) td{background:#f9fafb;}
+.rep-table tr:last-child td{border-bottom:none;}.rep-table tr:nth-child(even) td{background:#f9fafb;}
 .rep-table .foot td{background:#111827;color:#fff;font-weight:700;}
 .rep-scroll{overflow-x:auto;}
-.missing{color:#dc2626;font-style:italic;font-size:.75rem;}
-.exp-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;margin-top:10px;}
-
-/* ── BOTTOM BAR ── */
+.missing{color:var(--red);font-style:italic;font-size:.75rem;}
+.exp-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#16a34a;color:#fff;border:none;border-radius:9px;padding:12px;font-size:.88rem;font-weight:700;cursor:pointer;margin-top:4px;}
 .btm{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);padding:0;z-index:300;display:flex;}
 .btm-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px;cursor:pointer;font-size:.67rem;font-weight:700;color:var(--muted);gap:2px;border:none;background:none;}
-.btm-tab .ti{font-size:1.2rem;}
-.btm-tab.on{color:#111827;}
-.btm-tab.on .ti{transform:scale(1.1);}
-
-/* ── LOADING ── */
+.btm-tab .ti{font-size:1.2rem;}.btm-tab.on{color:#111827;}.btm-tab.on .ti{transform:scale(1.1);}
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:12px;color:var(--muted);font-size:.85rem;}
 .spinner{width:28px;height:28px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-
-/* ── PIN SCREEN ── */
-#view-pin{position:fixed;inset:0;background:#111827;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;}
+/* PIN */
+#view-pin{position:fixed;inset:0;background:#111827;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 #view-pin.hidden{display:none;}
 .pin-logo{font-size:2.5rem;margin-bottom:8px;}
 .pin-title{color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:4px;}
-.pin-sub{color:#9ca3af;font-size:.78rem;margin-bottom:32px;}
+.pin-sub{color:#9ca3af;font-size:.78rem;margin-bottom:8px;}
+.pin-role-hint{color:#6b7280;font-size:.68rem;margin-bottom:24px;}
 .pin-dots{display:flex;gap:14px;margin-bottom:32px;}
 .pin-dot{width:16px;height:16px;border-radius:50%;background:#374151;transition:background .15s;}
-.pin-dot.filled{background:#3b82f6;}
-.pin-dot.err{background:#dc2626;}
+.pin-dot.filled{background:#3b82f6;}.pin-dot.err{background:#dc2626;}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:240px;}
 .pin-btn{height:64px;border:none;border-radius:14px;background:#1f2937;color:#fff;font-size:1.4rem;font-weight:600;cursor:pointer;transition:background .1s,transform .1s;}
 .pin-btn:active{background:#374151;transform:scale(.95);}
-.pin-btn.del{font-size:1.1rem;background:#1f2937;}
-.pin-btn.empty{background:transparent;cursor:default;}
+.pin-btn.del{font-size:1.1rem;}.pin-btn.empty{background:transparent;cursor:default;}
 .pin-shake{animation:shake .3s;}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
-
-/* ── CONFIG SCREEN ── */
-#view-config{display:none;}
-#view-config.active{display:block;}
+/* CONFIG */
+#view-config{display:none;}#view-config.active{display:block;}
 .cfg-wrap{padding:16px 12px;}
 .cfg-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;}
-.cfg-title{font-size:.9rem;font-weight:700;margin-bottom:12px;}
-.cfg-fld{margin-bottom:10px;}
-.cfg-fld label{display:block;font-size:.72rem;color:var(--muted);margin-bottom:3px;font-weight:600;}
-.cfg-fld input{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:9px 10px;font-size:.88rem;color:var(--text);background:var(--inp);outline:none;}
-.cfg-fld input:focus{border-color:var(--accent);}
-.cfg-save{width:100%;background:#111827;color:#fff;border:none;border-radius:9px;padding:11px;font-size:.88rem;font-weight:700;cursor:pointer;margin-top:4px;}
-.cfg-info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px;font-size:.78rem;color:#1e40af;line-height:1.6;}
-.cfg-info strong{display:block;margin-bottom:4px;font-size:.82rem;}
-
-/* ── TOAST ── */
+.cfg-title{font-size:.9rem;font-weight:700;margin-bottom:8px;}
+.cfg-info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px;font-size:.78rem;color:#1e40af;line-height:1.7;}
+.logout-btn{width:100%;background:var(--red);color:#fff;border:none;border-radius:9px;padding:11px;font-size:.88rem;font-weight:700;cursor:pointer;}
 .toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%) translateY(8px);background:#111827;color:#fff;padding:10px 20px;border-radius:10px;font-size:.83rem;font-weight:700;z-index:9999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-.toast.ok{background:var(--green);} .toast.er{background:var(--red);}
-
+.toast.ok{background:var(--green);}.toast.er{background:var(--red);}
 .hidden{display:none!important;}
 </style>
 </head>
 <body>
 
-<!-- PIN SCREEN -->
 <div id="view-pin">
   <div class="pin-logo">🔒</div>
   <div class="pin-title">Skaitiklių sistema</div>
   <div class="pin-sub">Įveskite PIN kodą</div>
+  <div class="pin-role-hint">Nurašinėtojas: 6699 · Admin: 1122</div>
   <div class="pin-dots" id="pin-dots">
-    <div class="pin-dot" id="pd0"></div>
-    <div class="pin-dot" id="pd1"></div>
-    <div class="pin-dot" id="pd2"></div>
-    <div class="pin-dot" id="pd3"></div>
+    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
   </div>
   <div class="pin-pad">
     <button class="pin-btn" onclick="pinPress('1')">1</button>
@@ -213,30 +159,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
-<!-- HEADER -->
 <div class="hdr" id="hdr">
   <div class="hdr-top">
     <div><h1 id="hdr-title">Skaitiklių sistema</h1><div class="sub" id="hdr-sub">Pasirinkite adresą</div></div>
-    <div class="hdr-meta"><strong id="hdr-done">—</strong>nurašyta</div>
+    <div class="hdr-meta">
+      <strong id="hdr-done">—</strong>nurašyta
+      <div class="hdr-role" id="hdr-role"></div>
+    </div>
   </div>
   <div class="prog-track"><div class="prog-fill" id="pfill" style="width:0%"></div></div>
   <div class="prog-lbl" id="plbl"></div>
 </div>
 
-<!-- VIEW: ADDRESS SELECT -->
 <div id="view-select" class="active">
   <div style="padding:14px 12px 4px;font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Pasirinkite adresą</div>
-  <div class="addr-grid" id="addr-grid">
-    <div class="loading"><div class="spinner"></div>Kraunama...</div>
-  </div>
+  <div class="addr-grid" id="addr-grid"><div class="loading"><div class="spinner"></div>Kraunama...</div></div>
 </div>
 
-<!-- VIEW: FILL -->
 <div id="view-fill">
   <div class="period-bar">
     <button class="back-btn" onclick="showSelect()">&#8592; Atgal</button>
-    <label>Mėnuo:</label>
-    <input type="month" id="period-inp" />
+    <div class="period-lbl" id="period-lbl">—</div>
   </div>
   <div class="toolbar">
     <div class="sw"><span style="color:#9ca3af;font-size:.82rem;">&#128269;</span><input type="search" id="search" placeholder="Vardas arba butas..." autocomplete="off"/></div>
@@ -254,11 +197,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div id="cards"></div>
 </div>
 
-<!-- VIEW: REPORT -->
 <div id="view-report">
   <div class="report-wrap">
     <div class="report-controls">
-      <div class="rc-title">&#128202; Ataskaitos generavimas</div>
+      <div class="rc-title">📊 Ataskaitos generavimas</div>
       <div class="rc-row">
         <div class="rc-fld"><label>Adresas</label>
           <select id="rep-addr"><option value="">Visi adresai</option></select>
@@ -267,54 +209,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <input type="month" id="rep-period"/>
         </div>
       </div>
-      <button class="gen-btn" onclick="generateReport()">&#128202; Generuoti ataskaitą</button>
-      <button class="gen-btn" style="background:#16a34a;margin-top:8px;" onclick="exportXLS()">&#128196; Eksportuoti šilumos XLS (originali forma)</button>
+      <button class="gen-btn" onclick="generateReport()">📊 Generuoti ataskaitą</button>
+      <button class="gen-btn" style="background:#16a34a;margin-top:8px;" onclick="exportXLS()">📄 Eksportuoti šilumos XLS</button>
     </div>
     <div id="rep-output"></div>
   </div>
 </div>
 
-<!-- VIEW: CONFIG -->
 <div id="view-config">
   <div class="cfg-wrap">
     <div class="cfg-card">
-      <div class="cfg-title">&#9881; Supabase konfigūracija</div>
-      <div class="cfg-fld">
-        <label>Supabase URL</label>
-        <input type="text" id="cfg-url" placeholder="https://xxxx.supabase.co" />
-      </div>
-      <div class="cfg-fld">
-        <label>Anon Key</label>
-        <input type="text" id="cfg-key" placeholder="eyJhbGciOiJIUzI1NiIs..." />
-      </div>
-      <button class="cfg-save" onclick="saveConfig()">&#128190; Išsaugoti ir prisijungti</button>
+      <div class="cfg-title">⚙️ Paskyra</div>
+      <div class="cfg-info" id="cfg-info-text">Prisijungęs kaip: —</div>
     </div>
-    <div class="cfg-info">
-      <strong>Kaip gauti duomenis?</strong>
-      1. Eikite į <strong>supabase.com</strong> → jūsų projektas<br>
-      2. Settings → API<br>
-      3. Nukopijuokite <strong>Project URL</strong> ir <strong>anon public</strong> raktą<br>
-      4. Įklijuokite aukščiau ir spauskite "Išsaugoti"
-    </div>
+    <button class="logout-btn" onclick="logout()">🔒 Atsijungti</button>
   </div>
 </div>
 
-<!-- BOTTOM TABS -->
-<div class="btm">
-  <button class="btm-tab on" id="tab-home" onclick="switchTab('home')"><span class="ti">&#127968;</span>Nurašymas</button>
-  <button class="btm-tab" id="tab-report" onclick="switchTab('report')"><span class="ti">&#128202;</span>Ataskaita</button>
-  <button class="btm-tab" id="tab-config" onclick="switchTab('config')"><span class="ti">&#9881;</span>Nustatymai</button>
+<div class="btm" id="btm-bar">
+  <button class="btm-tab on" id="tab-home" onclick="switchTab('home')"><span class="ti">🏠</span>Nurašymas</button>
+  <button class="btm-tab" id="tab-report" onclick="switchTab('report')"><span class="ti">📊</span>Ataskaita</button>
+  <button class="btm-tab" id="tab-config" onclick="switchTab('config')"><span class="ti">⚙️</span>Paskyra</button>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG ── (hardcoded — nereikia įvesti rankiniu būdu)
 const SB_URL = 'https://fkuyazgbjehqppmcmamw.supabase.co';
 const SB_KEY  = 'sb_publishable_PIjTvJ2COG3tG8WDSEguww_SsGFzB2B';
+const PIN_TECH  = '6699';
+const PIN_ADMIN = '1122';
+const MEN = ['','sausis','vasaris','kovas','balandis','gegužė','birželis','liepa','rugpjūtis','rugsėjis','spalis','lapkritis','gruodis'];
+const MEN_GEN = ['','sausio','vasario','kovo','balandžio','gegužės','birželio','liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];
 
-// ── PIN ──
-const CORRECT_PIN = '6699';
+// ── ROLE ──
+let userRole = null; // 'tech' | 'admin'
 let pinVal = '';
 
 function pinPress(d) {
@@ -322,123 +251,106 @@ function pinPress(d) {
   pinVal += d;
   updatePinDots();
   if (pinVal.length === 4) {
-    if (pinVal === CORRECT_PIN) {
-      document.getElementById('view-pin').classList.add('hidden');
-      loadAddresses();
-    } else {
+    if (pinVal === PIN_ADMIN) { userRole='admin'; enterApp(); }
+    else if (pinVal === PIN_TECH) { userRole='tech'; enterApp(); }
+    else {
       document.querySelectorAll('.pin-dot').forEach(el=>el.classList.add('err'));
       document.getElementById('pin-dots').classList.add('pin-shake');
-      setTimeout(()=>{
-        pinVal=''; updatePinDots();
+      setTimeout(()=>{ pinVal=''; updatePinDots();
         document.querySelectorAll('.pin-dot').forEach(el=>el.classList.remove('err'));
         document.getElementById('pin-dots').classList.remove('pin-shake');
       }, 700);
     }
   }
 }
-
-function pinDel() {
-  pinVal = pinVal.slice(0,-1);
-  updatePinDots();
+function pinDel(){ pinVal=pinVal.slice(0,-1); updatePinDots(); }
+function updatePinDots(){ for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<pinVal.length); }
+function enterApp(){
+  document.getElementById('view-pin').classList.add('hidden');
+  const roleEl = document.getElementById('hdr-role');
+  roleEl.textContent = userRole==='admin'?'Admin':'Nurašinėtojas';
+  if(userRole==='admin') roleEl.classList.add('admin');
+  document.getElementById('cfg-info-text').textContent = 'Prisijungęs kaip: '+(userRole==='admin'?'Administratorius':'Nurašinėtojas');
+  // hide report tab for tech
+  document.getElementById('tab-report').classList.toggle('hidden', userRole==='tech');
+  loadAddresses();
 }
+function logout(){ userRole=null; pinVal=''; updatePinDots(); document.getElementById('view-pin').classList.remove('hidden'); showSelect(); }
 
-function updatePinDots() {
-  for (let i=0;i<4;i++) {
-    document.getElementById('pd'+i).classList.toggle('filled', i < pinVal.length);
-  }
-}
-
-function saveConfig() {
-  showT('Konfigūracija įrašyta kode','ok');
-}
-
-function loadConfig() {}
-
-// ── SUPABASE REST ──
+// ── SUPABASE ──
 async function sbFetch(path, opts={}) {
-  if (!SB_URL || !SB_KEY) throw new Error('no_config');
-  const res = await fetch(SB_URL + '/rest/v1/' + path, {
-    headers: {
-      'apikey': SB_KEY,
-      'Authorization': 'Bearer ' + SB_KEY,
-      'Content-Type': 'application/json',
-      'Prefer': opts.prefer || 'return=representation',
-      ...opts.headers
-    },
-    method: opts.method || 'GET',
-    body: opts.body ? JSON.stringify(opts.body) : undefined
+  const res = await fetch(SB_URL+'/rest/v1/'+path, {
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':opts.prefer||'return=representation',...opts.headers},
+    method:opts.method||'GET', body:opts.body?JSON.stringify(opts.body):undefined
   });
-  if (!res.ok) { const t=await res.text(); throw new Error(t); }
-  return res.status===204 ? null : res.json();
+  if(!res.ok){const t=await res.text();throw new Error(t);}
+  return res.status===204?null:res.json();
 }
 
 // ── STATE ──
 let addresses=[], curAddr=null, curPeriod='', apartments=[], meters=[], prevReadings={}, curReadings={}, cFilter='all';
 
 // ── INIT ──
-window.addEventListener('DOMContentLoaded', () => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth()+1).padStart(2,'0');
-  const p = y+'-'+m;
-  document.getElementById('period-inp').value = p;
-  document.getElementById('rep-period').value = p;
-  curPeriod = p;
-  document.getElementById('period-inp').addEventListener('change', e=>{ curPeriod=e.target.value; loadFill(); });
-  loadConfig();
-  // PIN ekranas rodomas automatiškai — loadAddresses() kviečiamas po PIN
+window.addEventListener('DOMContentLoaded',()=>{
+  const now=new Date();
+  curPeriod=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('rep-period').value=curPeriod;
+  // PWA install prompt
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;});
 });
 
-// ── ADDRESSES ──
-async function loadAddresses() {
-  document.getElementById('addr-grid').innerHTML = '<div class="loading"><div class="spinner"></div>Kraunama...</div>';
-  try {
-    addresses = await sbFetch('addresses?select=id,name&order=id');
-    renderAddresses();
-    // populate report select
-    const sel = document.getElementById('rep-addr');
-    sel.innerHTML = '<option value="">Visi adresai</option>';
-    addresses.forEach(a => sel.innerHTML += `<option value="${a.id}">${a.name}</option>`);
-  } catch(e) {
-    if (e.message==='no_config') { document.getElementById('addr-grid').innerHTML='<div class="loading">&#9888; Sukonfigūruokite Supabase nustatymuose</div>'; }
-    else { document.getElementById('addr-grid').innerHTML='<div class="loading">&#9888; Klaida: '+e.message+'</div>'; }
-  }
+// ── PERIOD LABEL ──
+function periodLabel(p){
+  const [y,m]=p.split('-').map(Number);
+  return MEN[m]+' '+y;
 }
 
-function addrMeta(name) {
-  const n = (name||'').toLowerCase();
-  if (n.includes('žemaitės g. 6') || n.includes('žemaitės g. 10')) return {icon:'⚡', type:'elec', sub:'Elektra (butai)'};
-  if (n.includes('karališkių')) return {icon:'🔥', type:'water', sub:'Karštas vanduo (butai)'};
-  return {icon:'🌡️', type:'heat', sub:'Šilumos skaitiklis'};
+// ── ADDRESSES ──
+async function loadAddresses(){
+  document.getElementById('addr-grid').innerHTML='<div class="loading"><div class="spinner"></div>Kraunama...</div>';
+  try{
+    const raw = await sbFetch('addresses?select=id,name&order=id');
+    // sort: elec first, then heat, then water
+    const order = a => { const t=addrMeta(a.name).type; return t==='elec'?0:t==='heat'?1:2; };
+    addresses = raw.sort((a,b)=>order(a)-order(b));
+    renderAddresses();
+    const sel=document.getElementById('rep-addr');
+    sel.innerHTML='<option value="">Visi adresai</option>';
+    addresses.forEach(a=>sel.innerHTML+=`<option value="${a.id}">${a.name}</option>`);
+  }catch(e){ document.getElementById('addr-grid').innerHTML='<div class="loading">⚠ Klaida: '+e.message+'</div>'; }
 }
-function renderAddresses() {
-  document.getElementById('addr-grid').innerHTML = addresses.map(a => {
-    const m = addrMeta(a.name);
+
+function addrMeta(name){
+  const n=(name||'').toLowerCase();
+  if(n.includes('žemaitės g. 6')||n.includes('žemaitės g. 10')) return {icon:'⚡',type:'elec',sub:'Elektra (butai)'};
+  if(n.includes('karališkių')) return {icon:'🔥',type:'water',sub:'Karštas vanduo (butai)'};
+  return {icon:'🌡️',type:'heat',sub:'Šilumos skaitiklis'};
+}
+
+function renderAddresses(){
+  document.getElementById('addr-grid').innerHTML=addresses.map(a=>{
+    const m=addrMeta(a.name);
     return `<div class="addr-card" onclick="selectAddr(${a.id})">
       <div class="addr-icon ${m.type}">${m.icon}</div>
-      <div>
-        <div class="addr-name">${a.name}</div>
-        <div class="addr-sub">${m.sub}</div>
-      </div>
-      <div class="addr-prog">
-        <div class="ap-num" id="ap-${a.id}">—</div>
-        <div class="ap-lbl">atlikta</div>
-      </div>
+      <div><div class="addr-name">${a.name}</div><div class="addr-sub">${m.sub}</div></div>
+      <div class="addr-prog"><div class="ap-num" id="ap-${a.id}">—</div><div class="ap-lbl">atlikta</div></div>
     </div>`;
   }).join('');
 }
 
-// ── SELECT ADDRESS ──
-async function selectAddr(addrId) {
-  curAddr = addresses.find(a=>a.id===addrId);
-  document.getElementById('hdr-title').textContent = curAddr.name;
+async function selectAddr(addrId){
+  curAddr=addresses.find(a=>a.id===addrId);
+  document.getElementById('hdr-title').textContent=curAddr.name;
   document.getElementById('view-select').classList.remove('active');
   document.getElementById('view-fill').classList.add('active');
+  document.getElementById('period-lbl').textContent=periodLabel(curPeriod);
+  document.getElementById('hdr-sub').textContent=curAddr.name+' · '+periodLabel(curPeriod);
   await loadFill();
 }
 
-function showSelect() {
-  curAddr=null; curReadings={};
+function showSelect(){
+  curAddr=null;curReadings={};
   document.getElementById('view-fill').classList.remove('active');
   document.getElementById('view-select').classList.add('active');
   document.getElementById('hdr-title').textContent='Skaitiklių sistema';
@@ -448,438 +360,384 @@ function showSelect() {
   document.getElementById('plbl').textContent='';
 }
 
-// ── LOAD FILL DATA ──
-async function loadFill() {
+// ── LOAD FILL ──
+async function loadFill(){
   document.getElementById('cards').innerHTML='<div class="loading"><div class="spinner"></div>Kraunama...</div>';
   curReadings={};
-  try {
-    // get apartments + meters
-    apartments = await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${curAddr.id}&order=number`);
-    meters = await sbFetch(`meters?select=id,apartment_id,meter_type_id,meter_types(code,label,unit)&apartment_id=in.(${apartments.map(a=>a.id).join(',')})`);
+  try{
+    apartments=await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${curAddr.id}&order=number`);
+    if(!apartments.length){document.getElementById('cards').innerHTML='<div class="loading">Nėra butų</div>';return;}
+    const aptIds=apartments.map(a=>a.id).join(',');
+    meters=await sbFetch(`meters?select=id,apartment_id,meter_type_id,meter_serial,meter_types(code,label,unit)&apartment_id=in.(${aptIds})`);
+    const mIds=meters.map(m=>m.id).join(',');
 
-    // get prev period
-    const prevPeriod = getPrevPeriod(curPeriod);
-    const mIds = meters.map(m=>m.id).join(',');
-    const prev = await sbFetch(`readings?select=meter_id,value_to&meter_id=in.(${mIds})&period=eq.${prevPeriod}`);
+    // get LATEST reading for each meter (any period) as NUO
+    const allPrev=await sbFetch(`readings?select=meter_id,value_to,period&meter_id=in.(${mIds})&order=period.desc`);
     prevReadings={};
-    prev.forEach(r=>prevReadings[r.meter_id]=r.value_to);
+    // take most recent per meter
+    allPrev.forEach(r=>{ if(prevReadings[r.meter_id]===undefined) prevReadings[r.meter_id]=r.value_to; });
 
-    // get current period readings if any
-    const curr = await sbFetch(`readings?select=id,meter_id,value_from,value_to,note&meter_id=in.(${mIds})&period=eq.${curPeriod}`);
+    // get current period
+    const curr=await sbFetch(`readings?select=id,meter_id,value_from,value_to,note&meter_id=in.(${mIds})&period=eq.${curPeriod}`);
     curr.forEach(r=>curReadings[r.meter_id]={...r});
 
     renderCards();
-  } catch(e) {
-    document.getElementById('cards').innerHTML='<div class="loading">&#9888; '+e.message+'</div>';
-  }
-}
-
-function getPrevPeriod(period) {
-  const [y,m] = period.split('-').map(Number);
-  if (m===1) return (y-1)+'-12';
-  return y+'-'+String(m-1).padStart(2,'0');
+  }catch(e){ document.getElementById('cards').innerHTML='<div class="loading">⚠ '+e.message+'</div>'; }
 }
 
 // ── RENDER CARDS ──
-function renderCards() {
-  const container = document.getElementById('cards');
+function renderCards(){
+  const container=document.getElementById('cards');
   container.innerHTML='';
-  const total = apartments.length;
-  document.getElementById('s-tot').textContent=total;
-  document.getElementById('s-left').textContent=total;
-  document.getElementById('hdr-sub').textContent=curAddr.name+' · '+curPeriod;
+  document.getElementById('s-tot').textContent=apartments.length;
+  document.getElementById('s-left').textContent=apartments.length;
 
-  apartments.forEach(apt => {
-    const aptMeters = meters.filter(m=>m.apartment_id===apt.id);
-    const isElec = aptMeters.some(m=>m.meter_types.code.startsWith('electricity'));
-    const isHeat = aptMeters.some(m=>m.meter_types.code.startsWith('heat_'));
-    const isSaved = aptMeters.every(m=>curReadings[m.id]);
-    const card = document.createElement('div');
+  apartments.forEach(apt=>{
+    const aptMeters=meters.filter(m=>m.apartment_id===apt.id);
+    const isElec=aptMeters.some(m=>m.meter_types.code.startsWith('electricity'));
+    const isHeat=aptMeters.some(m=>m.meter_types.code.startsWith('heat_'));
+    const isSaved=aptMeters.length>0&&aptMeters.every(m=>curReadings[m.id]);
+    const aptLabel=apt.apt_label||apt.number;
+    const isAdmin=userRole==='admin';
+
+    const card=document.createElement('div');
     card.className='card'+(isSaved?' saved':'');
     card.id='c'+apt.id;
-    card.dataset.name=(apt.tenant_name||'').toLowerCase()+' '+apt.number;
+    card.dataset.name=(apt.tenant_name||'').toLowerCase()+' '+String(aptLabel).toLowerCase();
     card.dataset.apt=apt.id;
 
-    const aptLabel = apt.apt_label || apt.number;
-    // header
     let headHtml=`<div class="ch">
       <div class="nbox" id="nb-${apt.id}">${aptLabel}</div>
       <div class="cname">${apt.tenant_name||'Butas '+aptLabel}</div>
+      ${isSaved&&isAdmin?`<button class="edit-btn" onclick="editApt(${apt.id})">✏ Taisyti</button>`:''}
       <div class="cbdg ${isSaved?'d':'p'}" id="bdg-${apt.id}">${isSaved?'✓ Atlikta':'Laukia'}</div>
     </div>`;
 
-    // body
     let bodyHtml='<div class="cbody">';
 
-    if (isHeat) {
-      const mwhM = aptMeters.find(m=>m.meter_types.code==='heat_mwh');
-      const m3M  = aptMeters.find(m=>m.meter_types.code==='heat_m3');
-      const hM   = aptMeters.find(m=>m.meter_types.code==='heat_h');
-      const wM   = aptMeters.find(m=>m.meter_types.code==='water_m3');
-      bodyHtml += `<div class="dsec-lbl" style="margin-bottom:6px;">🌡️ Šilumos skaitiklis (Nr. ${mwhM?.meter_serial||''})</div>`;
+    if(isHeat){
+      const mwhM=aptMeters.find(m=>m.meter_types.code==='heat_mwh');
+      const m3M=aptMeters.find(m=>m.meter_types.code==='heat_m3');
+      const hM=aptMeters.find(m=>m.meter_types.code==='heat_h');
+      const wM=aptMeters.find(m=>m.meter_types.code==='water_m3');
+      bodyHtml+=`<div class="dsec-lbl" style="margin-bottom:6px;">🌡️ Šilumos skaitiklis (Nr. ${mwhM?.meter_serial||''})</div>`;
       [{m:mwhM,label:'MWh/kWh',emoji:'🌡️'},{m:m3M,label:'m³',emoji:'💧'},{m:hM,label:'val',emoji:'⏱'}].forEach(({m,label,emoji})=>{
-        if (!m) return;
-        const prev=prevReadings[m.id]??'—'; const curr=curReadings[m.id];
+        if(!m)return;
+        const prev=prevReadings[m.id]??'—';const curr=curReadings[m.id];
+        const dis=isSaved?'disabled':'';
         bodyHtml+=`<div class="single-row" style="margin-bottom:7px;">
           <div class="fld"><label>${emoji} NUO (${label})</label><input class="pf" type="number" id="nuo-${m.id}" value="${prev}" readonly/></div>
-          <div class="fld"><label>IKI ✏</label><input type="number" id="iki-${m.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${isSaved?'disabled':''} oninput="calcChip(${m.id},${apt.id})"/></div>
+          <div class="fld"><label>IKI ✏</label><input type="number" id="iki-${m.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${dis} oninput="calcChip(${m.id},${apt.id})"/></div>
           <div class="chip cz" id="chip-${m.id}">—</div>
         </div>`;
-        if (curr) calcChip(m.id, apt.id, true);
+        if(curr)calcChip(m.id,apt.id,true);
       });
-      if (wM) {
-        const prev=prevReadings[wM.id]??'—'; const curr=curReadings[wM.id];
+      if(wM){
+        const prev=prevReadings[wM.id]??'—';const curr=curReadings[wM.id];const dis=isSaved?'disabled':'';
         bodyHtml+=`<div class="dsec-lbl" style="margin:8px 0 5px;">💧 Vanduo prieš boilerį (Nr. ${wM.meter_serial||''})</div>
         <div class="single-row" style="margin-bottom:7px;">
           <div class="fld"><label>NUO (m³)</label><input class="pf" type="number" id="nuo-${wM.id}" value="${prev}" readonly/></div>
-          <div class="fld"><label>IKI ✏</label><input type="number" id="iki-${wM.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${isSaved?'disabled':''} oninput="calcChip(${wM.id},${apt.id})"/></div>
+          <div class="fld"><label>IKI ✏</label><input type="number" id="iki-${wM.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${dis} oninput="calcChip(${wM.id},${apt.id})"/></div>
           <div class="chip cz" id="chip-${wM.id}">—</div>
         </div>`;
-        if (curr) calcChip(wM.id, apt.id, true);
+        if(curr)calcChip(wM.id,apt.id,true);
       }
-    } else if (isElec) {
-      // show last bendras
-      const dayM = aptMeters.find(m=>m.meter_types.code==='electricity_day');
-      const nightM = aptMeters.find(m=>m.meter_types.code==='electricity_night');
-      const prevDay = prevReadings[dayM?.id]??'—';
-      const prevNight = prevReadings[nightM?.id]??'—';
-      const lastBendras = (prevDay!=='—'&&prevNight!=='—') ? (Number(prevDay)+Number(prevNight)) : '—';
+    } else if(isElec){
+      const dayM=aptMeters.find(m=>m.meter_types.code==='electricity_day');
+      const nightM=aptMeters.find(m=>m.meter_types.code==='electricity_night');
+      const prevDay=prevReadings[dayM?.id]??'—';
+      const prevNight=prevReadings[nightM?.id]??'—';
+      const lastBendras=(prevDay!=='—'&&prevNight!=='—')?(Number(prevDay)+Number(prevNight)):'—';
       bodyHtml+=`<div class="bendras-box"><span class="bb-lbl">⚡ Bendras parodymas</span><span class="bb-val">${lastBendras} kWh</span></div>`;
-
-      // day
-      const dCurr = curReadings[dayM?.id];
+      const dCurr=curReadings[dayM?.id];const dis=isSaved?'disabled':'';
       bodyHtml+=`<div class="dual-sec"><div class="dsec-lbl">☀ Dieninis</div>
       <div class="dual-row">
         <div class="fld"><label>NUO (buvęs)</label><input class="pf" type="number" id="nuo-${dayM.id}" value="${prevDay}" readonly/></div>
-        <div class="fld"><label>IKI (naujas) ✏</label><input type="number" id="iki-${dayM.id}" placeholder="Įvesti..." inputmode="decimal" value="${dCurr?dCurr.value_to:''}" ${isSaved?'disabled':''} oninput="calcChip(${dayM.id},${apt.id})"/></div>
+        <div class="fld"><label>IKI (naujas) ✏</label><input type="number" id="iki-${dayM.id}" placeholder="Įvesti..." inputmode="decimal" value="${dCurr?dCurr.value_to:''}" ${dis} oninput="calcChip(${dayM.id},${apt.id})"/></div>
         <div class="chip cz" id="chip-${dayM.id}">—</div>
       </div></div>`;
-
-      // night
-      const nCurr = curReadings[nightM?.id];
+      const nCurr=curReadings[nightM?.id];
       bodyHtml+=`<div class="dual-sec"><div class="dsec-lbl">🌙 Naktinis</div>
       <div class="dual-row">
         <div class="fld"><label>NUO (buvęs)</label><input class="pf" type="number" id="nuo-${nightM.id}" value="${prevNight}" readonly/></div>
-        <div class="fld"><label>IKI (naujas) ✏</label><input type="number" id="iki-${nightM.id}" placeholder="Įvesti..." inputmode="decimal" value="${nCurr?nCurr.value_to:''}" ${isSaved?'disabled':''} oninput="calcChip(${nightM.id},${apt.id})"/></div>
+        <div class="fld"><label>IKI (naujas) ✏</label><input type="number" id="iki-${nightM.id}" placeholder="Įvesti..." inputmode="decimal" value="${nCurr?nCurr.value_to:''}" ${dis} oninput="calcChip(${nightM.id},${apt.id})"/></div>
         <div class="chip cz" id="chip-${nightM.id}">—</div>
       </div></div>`;
-
-      if (dayM && dCurr) calcChip(dayM.id, apt.id, true);
-      if (nightM && nCurr) calcChip(nightM.id, apt.id, true);
-
+      if(dayM&&dCurr)calcChip(dayM.id,apt.id,true);
+      if(nightM&&nCurr)calcChip(nightM.id,apt.id,true);
     } else {
-      // single meter (water/gas)
-      aptMeters.forEach(m => {
-        const prev = prevReadings[m.id]??'—';
-        const unit = m.meter_types.unit;
-        const curr = curReadings[m.id];
+      aptMeters.forEach(m=>{
+        const prev=prevReadings[m.id]??'—';const unit=m.meter_types.unit;const curr=curReadings[m.id];const dis=isSaved?'disabled':'';
         bodyHtml+=`<div class="single-row" style="margin-bottom:8px;">
           <div class="fld"><label>NUO (${unit})</label><input class="pf" type="number" id="nuo-${m.id}" value="${prev}" readonly/></div>
-          <div class="fld"><label>IKI (naujas) ✏</label><input type="number" id="iki-${m.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${isSaved?'disabled':''} oninput="calcChip(${m.id},${apt.id})"/></div>
+          <div class="fld"><label>IKI (naujas) ✏</label><input type="number" id="iki-${m.id}" placeholder="Įvesti..." inputmode="decimal" value="${curr?curr.value_to:''}" ${dis} oninput="calcChip(${m.id},${apt.id})"/></div>
           <div class="chip cz" id="chip-${m.id}">—</div>
         </div>`;
-        if (curr) calcChip(m.id, apt.id, true);
+        if(curr)calcChip(m.id,apt.id,true);
       });
     }
 
-    const savedNote = isSaved ? (curReadings[aptMeters[0]?.id]?.note||'') : '';
+    const savedNote=isSaved?(curReadings[aptMeters[0]?.id]?.note||''):'';
     bodyHtml+=`<textarea class="note-inp" id="note-${apt.id}" placeholder="Pastabos..." rows="1" ${isSaved?'disabled':''}>${savedNote}</textarea>`;
-    bodyHtml+='</div>';
 
-    // footer
-    const unit = aptMeters[0]?.meter_types?.unit || 'kWh';
-    let footHtml=`<div class="cf">
-      <div><div class="tot-lbl">Suvartota šį mėn.</div><div class="tot-val" id="tot-${apt.id}">— ${isElec?'kWh':unit}</div></div>
-      <button class="sbtn ${isSaved?'sv':''}" id="sbtn-${apt.id}" onclick="saveApt(${apt.id})" ${isSaved?'disabled':''}>
-        ${isSaved?'✓ Išsaugota':'Išsaugoti ✓'}
-      </button></div>`;
+```
+bodyHtml+='</div>';
 
-    card.innerHTML = headHtml+bodyHtml+footHtml;
-    container.appendChild(card);
+const unit=aptMeters[0]?.meter_types?.unit||'kWh';
+let footHtml=`<div class="cf">
+  <div><div class="tot-lbl">Suvartota šį mėn.</div><div class="tot-val" id="tot-${apt.id}">— ${isElec?'kWh':unit}</div></div>
+  <button class="sbtn ${isSaved?'sv':''}" id="sbtn-${apt.id}" onclick="saveApt(${apt.id})" ${isSaved?'disabled':''}>
+    ${isSaved?'✓ Išsaugota':'Išsaugoti ✓'}
+  </button></div>`;
 
-    if (isSaved) updateTotal(apt.id);
-  });
+card.innerHTML=headHtml+bodyHtml+footHtml;
+container.appendChild(card);
+if(isSaved)updateTotal(apt.id);
+```
 
-  updateStats();
-  applyF();
+});
+updateStats();applyF();
+}
+
+// ── ADMIN EDIT ──
+function editApt(aptId){
+if(userRole!==‘admin’){showT(‘Tik admin gali taisyti!’,‘er’);return;}
+const aptM=meters.filter(m=>m.apartment_id===aptId);
+aptM.forEach(m=>{
+const ikiEl=document.getElementById(‘iki-’+m.id);
+if(ikiEl)ikiEl.disabled=false;
+});
+const noteEl=document.getElementById(‘note-’+aptId);
+if(noteEl)noteEl.disabled=false;
+const btn=document.getElementById(‘sbtn-’+aptId);
+btn.textContent=‘💾 Išsaugoti’;btn.disabled=false;btn.classList.remove(‘sv’);
+const card=document.getElementById(‘c’+aptId);
+card.classList.remove(‘saved’);
+showT(‘Redagavimo režimas įjungtas’,‘ok’);
 }
 
 // ── CHIP CALC ──
-function calcChip(meterId, aptId, silent) {
-  const nuo = parseFloat(document.getElementById('nuo-'+meterId)?.value)||0;
-  const ikiEl = document.getElementById('iki-'+meterId);
-  if (!ikiEl) return;
-  const iki = parseFloat(ikiEl.value);
-  const chip = document.getElementById('chip-'+meterId);
-  if (!chip) return;
-  if (isNaN(iki)) { chip.textContent='—'; chip.className='chip cz'; return; }
-  const d = iki-nuo;
-  chip.textContent=(d>=0?'+':'')+d;
-  chip.className='chip '+(d<0?'cn':d===0?'cz':'cp');
-  ikiEl.classList.toggle('ei', d<0);
-  if (!silent) updateTotal(aptId);
+function calcChip(meterId,aptId,silent){
+const nuo=parseFloat(document.getElementById(‘nuo-’+meterId)?.value)||0;
+const ikiEl=document.getElementById(‘iki-’+meterId);
+if(!ikiEl)return;
+const iki=parseFloat(ikiEl.value);
+const chip=document.getElementById(‘chip-’+meterId);
+if(!chip)return;
+if(isNaN(iki)){chip.textContent=’—’;chip.className=‘chip cz’;return;}
+const d=iki-nuo;
+chip.textContent=(d>=0?’+’:’’)+d;
+chip.className=’chip ’+(d<0?‘cn’:d===0?‘cz’:‘cp’);
+ikiEl.classList.toggle(‘ei’,d<0);
+if(!silent)updateTotal(aptId);
 }
 
-function updateTotal(aptId) {
-  const apt = apartments.find(a=>a.id===aptId);
-  if (!apt) return;
-  const aptM = meters.filter(m=>m.apartment_id===aptId);
-  let tot=0, valid=true;
-  aptM.forEach(m=>{
-    const nuo=parseFloat(document.getElementById('nuo-'+m.id)?.value)||0;
-    const iki=parseFloat(document.getElementById('iki-'+m.id)?.value);
-    if (isNaN(iki)) { valid=false; return; }
-    tot += iki-nuo;
-  });
-  const unit = aptM[0]?.meter_types?.unit||'kWh';
-  document.getElementById('tot-'+aptId).textContent = valid ? tot+' '+unit : '— '+unit;
+function updateTotal(aptId){
+const aptM=meters.filter(m=>m.apartment_id===aptId);
+let tot=0,valid=true;
+aptM.forEach(m=>{
+const nuo=parseFloat(document.getElementById(‘nuo-’+m.id)?.value)||0;
+const iki=parseFloat(document.getElementById(‘iki-’+m.id)?.value);
+if(isNaN(iki)){valid=false;return;}
+tot+=iki-nuo;
+});
+const unit=aptM[0]?.meter_types?.unit||‘kWh’;
+document.getElementById(‘tot-’+aptId).textContent=valid?tot+’ ‘+unit:’— ’+unit;
 }
 
 // ── SAVE ──
-async function saveApt(aptId) {
-  const apt = apartments.find(a=>a.id===aptId);
-  const aptM = meters.filter(m=>m.apartment_id===aptId);
-  const note = document.getElementById('note-'+aptId)?.value||'';
-  const inserts = [];
-  for (const m of aptM) {
-    const nuo=parseFloat(document.getElementById('nuo-'+m.id)?.value);
-    const iki=parseFloat(document.getElementById('iki-'+m.id)?.value);
-    if (isNaN(iki)) { showT('Įveskite visus parodymus!','er'); return; }
-    if (iki<nuo) { showT('Parodymas mažesnis už ankstesnį!','er'); return; }
-    inserts.push({meter_id:m.id, period:curPeriod, value_from:nuo, value_to:iki, note});
-  }
-  const btn=document.getElementById('sbtn-'+aptId);
-  btn.textContent='...'; btn.disabled=true;
-  try {
-    // upsert
-    for (const ins of inserts) {
-      const existing = curReadings[ins.meter_id];
-      if (existing) {
-        await sbFetch(`readings?id=eq.${existing.id}`, {method:'PATCH', body:{value_to:ins.value_to,note:ins.note}, prefer:'return=minimal'});
-        curReadings[ins.meter_id]={...existing, value_to:ins.value_to, note:ins.note};
-      } else {
-        const [created] = await sbFetch('readings', {method:'POST', body:ins});
-        curReadings[ins.meter_id]=created;
-      }
-    }
-    const card=document.getElementById('c'+aptId);
-    card.classList.add('saved'); card.classList.remove('err');
-    document.getElementById('nb-'+aptId).style.background='var(--green)';
-    const bdg=document.getElementById('bdg-'+aptId); bdg.textContent='✓ Atlikta'; bdg.className='cbdg d';
-    btn.textContent='✓ Išsaugota'; btn.classList.add('sv');
-    aptM.forEach(m=>{ const el=document.getElementById('iki-'+m.id); if(el) el.disabled=true; });
-    const noteEl=document.getElementById('note-'+aptId); if(noteEl) noteEl.disabled=true;
-    updateStats();
-    showT('Butas '+apt.number+' išsaugotas!','ok');
-  } catch(e) {
-    btn.textContent='Išsaugoti ✓'; btn.disabled=false;
-    showT('Klaida: '+e.message,'er');
-  }
+async function saveApt(aptId){
+const apt=apartments.find(a=>a.id===aptId);
+const aptM=meters.filter(m=>m.apartment_id===aptId);
+const note=document.getElementById(‘note-’+aptId)?.value||’’;
+const inserts=[];
+for(const m of aptM){
+const nuo=parseFloat(document.getElementById(‘nuo-’+m.id)?.value);
+const iki=parseFloat(document.getElementById(‘iki-’+m.id)?.value);
+if(isNaN(iki)){showT(‘Įveskite visus parodymus!’,‘er’);return;}
+if(iki<nuo){showT(‘Parodymas mažesnis už ankstesnį!’,‘er’);return;}
+inserts.push({meter_id:m.id,period:curPeriod,value_from:nuo,value_to:iki,note});
+}
+const btn=document.getElementById(‘sbtn-’+aptId);
+btn.textContent=’…’;btn.disabled=true;
+try{
+for(const ins of inserts){
+const existing=curReadings[ins.meter_id];
+if(existing){
+await sbFetch(`readings?id=eq.${existing.id}`,{method:‘PATCH’,body:{value_to:ins.value_to,note:ins.note},prefer:‘return=minimal’});
+curReadings[ins.meter_id]={…existing,value_to:ins.value_to,note:ins.note};
+} else {
+const [created]=await sbFetch(‘readings’,{method:‘POST’,body:ins});
+curReadings[ins.meter_id]=created;
+}
+}
+const card=document.getElementById(‘c’+aptId);
+card.classList.add(‘saved’);card.classList.remove(‘err’);
+document.getElementById(‘nb-’+aptId).style.background=‘var(–green)’;
+const bdg=document.getElementById(‘bdg-’+aptId);bdg.textContent=‘✓ Atlikta’;bdg.className=‘cbdg d’;
+btn.textContent=‘✓ Išsaugota’;btn.classList.add(‘sv’);
+aptM.forEach(m=>{const el=document.getElementById(‘iki-’+m.id);if(el)el.disabled=true;});
+const noteEl=document.getElementById(‘note-’+aptId);if(noteEl)noteEl.disabled=true;
+// add edit button for admin
+if(userRole===‘admin’){
+const ch=document.getElementById(‘c’+aptId).querySelector(’.ch’);
+if(!ch.querySelector(’.edit-btn’)){
+const eb=document.createElement(‘button’);
+eb.className=‘edit-btn’;eb.textContent=‘✏ Taisyti’;
+eb.onclick=()=>editApt(aptId);
+bdg.before(eb);
+}
+}
+updateStats();
+showT(‘Butas ‘+(apt.apt_label||apt.number)+’ išsaugotas!’,‘ok’);
+}catch(e){btn.textContent=‘Išsaugoti ✓’;btn.disabled=false;showT(’Klaida: ’+e.message,‘er’);}
 }
 
 // ── STATS ──
-function updateStats() {
-  const total=apartments.length;
-  const done=apartments.filter(a=>meters.filter(m=>m.apartment_id===a.id).every(m=>curReadings[m.id])).length;
-  const errs=document.querySelectorAll('.card.err').length;
-  const pct=total>0?Math.round(done/total*100):0;
-  document.getElementById('s-tot').textContent=total;
-  document.getElementById('s-done').textContent=done;
-  document.getElementById('s-left').textContent=total-done;
-  document.getElementById('s-err').textContent=errs;
-  document.getElementById('hdr-done').textContent=done+'/'+total;
-  document.getElementById('pfill').style.width=pct+'%';
-  document.getElementById('plbl').textContent=pct+'% atlikta';
+function updateStats(){
+const total=apartments.length;
+const done=apartments.filter(a=>meters.filter(m=>m.apartment_id===a.id).every(m=>curReadings[m.id])).length;
+const errs=document.querySelectorAll(’.card.err’).length;
+const pct=total>0?Math.round(done/total*100):0;
+document.getElementById(‘s-tot’).textContent=total;
+document.getElementById(‘s-done’).textContent=done;
+document.getElementById(‘s-left’).textContent=total-done;
+document.getElementById(‘s-err’).textContent=errs;
+document.getElementById(‘hdr-done’).textContent=done+’/’+total;
+document.getElementById(‘pfill’).style.width=pct+’%’;
+document.getElementById(‘plbl’).textContent=pct+’% atlikta’;
 }
 
 // ── FILTER ──
-function setF(f,btn){
-  cFilter=f;
-  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on'); applyF();
-}
+function setF(f,btn){cFilter=f;document.querySelectorAll(’.tbtn’).forEach(b=>b.classList.remove(‘on’));btn.classList.add(‘on’);applyF();}
 function applyF(){
-  const q=document.getElementById('search').value.toLowerCase();
-  document.querySelectorAll('.card').forEach(c=>{
-    const mq=!q||c.dataset.name.includes(q);
-    const isSaved=c.classList.contains('saved');
-    const mf=cFilter==='all'||(cFilter==='done'&&isSaved)||(cFilter==='pending'&&!isSaved);
-    c.classList.toggle('hidden',!(mq&&mf));
-  });
+const q=document.getElementById(‘search’).value.toLowerCase();
+document.querySelectorAll(’.card’).forEach(c=>{
+const mq=!q||c.dataset.name.includes(q);
+const isSaved=c.classList.contains(‘saved’);
+const mf=cFilter===‘all’||(cFilter===‘done’&&isSaved)||(cFilter===‘pending’&&!isSaved);
+c.classList.toggle(‘hidden’,!(mq&&mf));
+});
 }
-document.getElementById('search').addEventListener('input',applyF);
+document.getElementById(‘search’).addEventListener(‘input’,applyF);
 
 // ── REPORT ──
-async function generateReport() {
-  const addrId = document.getElementById('rep-addr').value;
-  const period = document.getElementById('rep-period').value;
-  if (!period) { showT('Pasirinkite mėnesį!','er'); return; }
-  document.getElementById('rep-output').innerHTML='<div class="loading"><div class="spinner"></div>Kraunama...</div>';
-  try {
-    let addrsToShow = addrId ? addresses.filter(a=>a.id==addrId) : addresses;
-    let html='';
-    let csvRows=[['Adresas','Butas','Abonento vardas','Skaitiklio tipas','NUO','IKI','Suvartota','Vnt.','Pastabos']];
-
-    for (const addr of addrsToShow) {
-      const apts = await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${addr.id}&order=number`);
-      if (!apts.length) continue;
-      const aptIds = apts.map(a=>a.id).join(',');
-      const ms = await sbFetch(`meters?select=id,apartment_id,meter_types(code,label,unit)&apartment_id=in.(${aptIds})`);
-      const mIds = ms.map(m=>m.id).join(',');
-      const readings = await sbFetch(`readings?select=meter_id,value_from,value_to,consumption,note&meter_id=in.(${mIds})&period=eq.${period}`);
-      const readMap={};
-      readings.forEach(r=>readMap[r.meter_id]=r);
-
-      let totalConsumption=0;
-      let rows='';
-      apts.forEach(apt=>{
-        const aptMs=ms.filter(m=>m.apartment_id===apt.id);
-        let aptTot=0, aptTotValid=true;
-        aptMs.forEach(m=>{
-          const r=readMap[m.id];
-          const cons=r?Number(r.consumption):null;
-          if(cons!==null) aptTot+=cons; else aptTotValid=false;
-          if(r) totalConsumption+=cons;
-          csvRows.push([addr.name, apt.number, apt.tenant_name||'', m.meter_types.label, r?r.value_from:'', r?r.value_to:'', cons!==null?cons:'', m.meter_types.unit, r?r.note||'':'Nenurašyta']);
-        });
-        const isMissing=aptMs.some(m=>!readMap[m.id]);
-        const aptDisp = apt.apt_label || apt.number;
-        rows+=`<tr>
-          <td><b>${aptDisp}</b></td>
-          <td>${apt.tenant_name||'—'}</td>
-          ${aptMs.map(m=>{const r=readMap[m.id]; return `<td>${r?r.value_from:'<span class="missing">—</span>'}</td><td>${r?r.value_to:'<span class="missing">—</span>'}</td><td>${r?Number(r.consumption):'<span class="missing">—</span>'}</td>`;}).join('')}
-          <td>${isMissing?'<span class="missing">Nenurašyta</span>':readMap[aptMs[0]?.id]?.note||''}</td>
-        </tr>`;
-      });
-
-      const firstM = ms[0];
-      const isElec = firstM?.meter_types?.code?.startsWith('electricity');
-      const unit = firstM?.meter_types?.unit||'kWh';
-      const cols = isElec ? 
-        '<th>Nr.</th><th>Abonento vardas</th><th>D.NUO</th><th>D.IKI</th><th>D.kWh</th><th>N.NUO</th><th>N.IKI</th><th>N.kWh</th><th>Pastabos</th>' :
-        `<th>Nr.</th><th>Abonento vardas</th><th>NUO (${unit})</th><th>IKI (${unit})</th><th>Suvartota</th><th>Pastabos</th>`;
-
-      html+=`<div class="rep-table-wrap" style="margin-bottom:12px;">
-        <h3>${addr.name} · ${period} · Iš viso: ${totalConsumption.toFixed(1)} ${unit}</h3>
-        <div class="rep-scroll">
-          <table class="rep-table"><thead><tr>${cols}</tr></thead>
-          <tbody>${rows}</tbody></table>
-        </div>
-      </div>`;
-    }
-
-    html+=`<button class="exp-btn" onclick="exportCSV(${JSON.stringify(csvRows).replace(/</g,'&lt;')})">&#128196; Eksportuoti Excel/CSV</button>`;
-    document.getElementById('rep-output').innerHTML=html;
-  } catch(e) {
-    document.getElementById('rep-output').innerHTML='<div class="loading">&#9888; '+e.message+'</div>';
-  }
+async function generateReport(){
+if(userRole!==‘admin’){showT(‘Tik admin gali matyti ataskaitas!’,‘er’);return;}
+const addrId=document.getElementById(‘rep-addr’).value;
+const period=document.getElementById(‘rep-period’).value;
+if(!period){showT(‘Pasirinkite mėnesį!’,‘er’);return;}
+const [y,m]=period.split(’-’).map(Number);
+document.getElementById(‘rep-output’).innerHTML=’<div class="loading"><div class="spinner"></div>Kraunama…</div>’;
+try{
+let addrsToShow=addrId?addresses.filter(a=>a.id==addrId):addresses;
+let html=’’;
+let csvRows=[[‘Adresas’,‘Butas’,‘Abonento vardas’,‘Skaitiklio tipas’,‘NUO’,‘IKI’,‘Suvartota’,‘Vnt.’,‘Pastabos’]];
+for(const addr of addrsToShow){
+const apts=await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${addr.id}&order=number`);
+if(!apts.length)continue;
+const aptIds=apts.map(a=>a.id).join(’,’);
+const ms=await sbFetch(`meters?select=id,apartment_id,meter_types(code,label,unit)&apartment_id=in.(${aptIds})`);
+const mIds=ms.map(m=>m.id).join(’,’);
+const readings=await sbFetch(`readings?select=meter_id,value_from,value_to,consumption,note&meter_id=in.(${mIds})&period=eq.${period}`);
+const readMap={};readings.forEach(r=>readMap[r.meter_id]=r);
+let totalCons=0;let rows=’’;
+apts.forEach(apt=>{
+const aptMs=ms.filter(m=>m.apartment_id===apt.id);
+const aptDisp=apt.apt_label||apt.number;
+aptMs.forEach(m=>{
+const r=readMap[m.id];const cons=r?Number(r.consumption):null;
+if(cons!==null)totalCons+=cons;
+csvRows.push([addr.name,aptDisp,apt.tenant_name||’’,m.meter_types.label,r?r.value_from:’’,r?r.value_to:’’,cons!==null?cons:’’,m.meter_types.unit,r?r.note||’’:‘Nenurašyta’]);
+});
+const isMissing=aptMs.some(m=>!readMap[m.id]);
+const firstM=aptMs[0];const isE=firstM?.meter_types?.code?.startsWith(‘electricity’);
+if(isE){
+const dM=aptMs.find(m=>m.meter_types.code===‘electricity_day’);
+const nM=aptMs.find(m=>m.meter_types.code===‘electricity_night’);
+const rd=readMap[dM?.id];const rn=readMap[nM?.id];
+rows+=`<tr><td><b>${aptDisp}</b></td><td>${apt.tenant_name||'—'}</td> <td>${rd?rd.value_from:'<span class="missing">—</span>'}</td><td>${rd?rd.value_to:'<span class="missing">—</span>'}</td><td>${rd?Number(rd.consumption):'<span class="missing">—</span>'}</td> <td>${rn?rn.value_from:'<span class="missing">—</span>'}</td><td>${rn?rn.value_to:'<span class="missing">—</span>'}</td><td>${rn?Number(rn.consumption):'<span class="missing">—</span>'}</td> <td>${isMissing?'<span class="missing">Nenurašyta</span>':readMap[dM?.id]?.note||''}</td></tr>`;
+} else {
+const r=readMap[firstM?.id];
+rows+=`<tr><td><b>${aptDisp}</b></td><td>${apt.tenant_name||'—'}</td> <td>${r?r.value_from:'<span class="missing">—</span>'}</td><td>${r?r.value_to:'<span class="missing">—</span>'}</td> <td>${r?Number(r.consumption):'<span class="missing">—</span>'}</td> <td>${isMissing?'<span class="missing">Nenurašyta</span>':r?.note||''}</td></tr>`;
+}
+});
+const firstM=ms[0];const isE=firstM?.meter_types?.code?.startsWith(‘electricity’);
+const unit=firstM?.meter_types?.unit||‘kWh’;
+const cols=isE?’<th>Nr.</th><th>Abonento vardas</th><th>D.NUO</th><th>D.IKI</th><th>D.kWh</th><th>N.NUO</th><th>N.IKI</th><th>N.kWh</th><th>Pastabos</th>’
+:`<th>Nr.</th><th>Abonento vardas</th><th>NUO</th><th>IKI</th><th>Suvartota (${unit})</th><th>Pastabos</th>`;
+html+=`<div class="rep-table-wrap"><h3>${addr.name} · ${MEN_GEN[m]} ${y} · Iš viso: ${totalCons.toFixed(1)} ${unit}</h3> <div class="rep-scroll"><table class="rep-table"><thead><tr>${cols}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+html+=`<button class="exp-btn" onclick='exportCSV(${JSON.stringify(csvRows)})'>📄 Eksportuoti CSV</button>`;
+document.getElementById(‘rep-output’).innerHTML=html;
+}catch(e){document.getElementById(‘rep-output’).innerHTML=’<div class="loading">⚠ ‘+e.message+’</div>’;}
 }
 
-// ── EXPORT CSV ──
-function exportCSV(rows) {
-  let csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\n');
-  const b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const u=URL.createObjectURL(b);
-  const a=document.createElement('a');
-  a.href=u; a.download='skaitikliai_'+document.getElementById('rep-period').value+'.csv'; a.click();
-  showT('CSV eksportuotas!','ok');
+function exportCSV(rows){
+let csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(’;’)).join(’\n’);
+const b=new Blob([’\uFEFF’+csv],{type:‘text/csv;charset=utf-8;’});
+const u=URL.createObjectURL(b);const a=document.createElement(‘a’);
+a.href=u;a.download=‘skaitikliai_’+document.getElementById(‘rep-period’).value+’.csv’;a.click();
+showT(‘CSV eksportuotas!’,‘ok’);
 }
 
-// ── EXPORT XLS (original format) ──
-async function exportXLS() {
-  const addrId = document.getElementById('rep-addr').value;
-  const period = document.getElementById('rep-period').value;
-  if (!period) { showT('Pasirinkite mėnesį!','er'); return; }
-  const [y,m] = period.split('-').map(Number);
-  const menNames = ['','sausio','vasario','kovo','balandžio','gegužės','birželio','liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];
-  const menLabel = `${y} m. ${menNames[m]||m} mėn.`;
-
-  let addrsToShow = addrId ? addresses.filter(a=>a.id==addrId) : addresses;
-  // filter only heating addresses
-  addrsToShow = addrsToShow.filter(a => {
-    const meta = addrMeta(a.name);
-    return meta.type === 'heat';
-  });
-  if (!addrsToShow.length) { showT('Nėra šilumos skaitiklių!','er'); return; }
-
-  // Build one big CSV that mimics the XLS format
-  let allCsv = '';
-  for (const addr of addrsToShow) {
-    const apts = await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${addr.id}&order=number`);
-    if (!apts.length) continue;
-    const ms = await sbFetch(`meters?select=id,apartment_id,meter_type_id,meter_serial,meter_types(code,label,unit)&apartment_id=in.(${apts.map(a=>a.id).join(',')})`);
-    const mIds = ms.map(m=>m.id).join(',');
-    const readings = await sbFetch(`readings?select=meter_id,value_from,value_to,consumption,note&meter_id=in.(${mIds})&period=eq.${period}`);
-    const readMap={};
-    readings.forEach(r=>readMap[r.meter_id]=r);
-
-    const apt = apts[0];
-    const mwhM = ms.find(m=>m.meter_types.code==='heat_mwh');
-    const m3M  = ms.find(m=>m.meter_types.code==='heat_m3');
-    const hM   = ms.find(m=>m.meter_types.code==='heat_h');
-    const wM   = ms.find(m=>m.meter_types.code==='water_m3');
-
-    allCsv += `UAB "Mano Būstas Vakarai"\n`;
-    allCsv += `${addr.name}\n`;
-    allCsv += `APSKAITOS PRIETAISŲ PARODYMAI ${menLabel}\n`;
-    allCsv += `\n`;
-    allCsv += `Prietaiso pavadinimas;Mat. vnt.;mėn. pradž.;mėn. gale;skirtumas;Pastabos\n`;
-
-    const serial = mwhM?.meter_serial || '';
-    const rMwh = readMap[mwhM?.id];
-    const rM3  = readMap[m3M?.id];
-    const rH   = readMap[hM?.id];
-    const rW   = readMap[wM?.id];
-
-    allCsv += `Šilumos skaitiklis Gamykl. Nr. ${serial};MWh/kWh;${rMwh?rMwh.value_from:''};${rMwh?rMwh.value_to:''};${rMwh?Number(rMwh.consumption):''};${rMwh?rMwh.note||'':''}\n`;
-    allCsv += `;m3;${rM3?rM3.value_from:''};${rM3?rM3.value_to:''};${rM3?Number(rM3.consumption):''}\n`;
-    allCsv += `;val;${rH?rH.value_from:''};${rH?rH.value_to:''};${rH?Number(rH.consumption):''}\n`;
-    if (wM) {
-      const wSerial = wM.meter_serial||'';
-      allCsv += `Vandens skaitiklis prieš boilerį gamyklinis nr. ${wSerial};m3;${rW?rW.value_from:''};${rW?rW.value_to:''};${rW?Number(rW.consumption):''}\n`;
-    }
-    allCsv += `\nDuomenų fiksavimo data: ${new Date().toLocaleDateString('lt-LT')}\n`;
-    allCsv += `\n---\n\n`;
-  }
-
-  const b=new Blob(['\uFEFF'+allCsv],{type:'text/csv;charset=utf-8;'});
-  const u=URL.createObjectURL(b);
-  const a=document.createElement('a');
-  a.href=u; a.download=`siluma_${period}.csv`; a.click();
-  showT('XLS eksportuotas!','ok');
+async function exportXLS(){
+if(userRole!==‘admin’){showT(‘Tik admin!’,‘er’);return;}
+const addrId=document.getElementById(‘rep-addr’).value;
+const period=document.getElementById(‘rep-period’).value;
+if(!period){showT(‘Pasirinkite mėnesį!’,‘er’);return;}
+const[y,m]=period.split(’-’).map(Number);
+const menLabel=`${y} m. ${MEN_GEN[m]||m} mėn.`;
+let addrsToShow=addrId?addresses.filter(a=>a.id==addrId):addresses;
+addrsToShow=addrsToShow.filter(a=>addrMeta(a.name).type===‘heat’);
+if(!addrsToShow.length){showT(‘Nėra šilumos skaitiklių!’,‘er’);return;}
+let allCsv=’’;
+for(const addr of addrsToShow){
+const apts=await sbFetch(`apartments?select=id,number,tenant_name,apt_label&address_id=eq.${addr.id}&order=number`);
+if(!apts.length)continue;
+const ms=await sbFetch(`meters?select=id,apartment_id,meter_type_id,meter_serial,meter_types(code,label,unit)&apartment_id=in.(${apts.map(a=>a.id).join(',')})`);
+const mIds=ms.map(m=>m.id).join(’,’);
+const readings=await sbFetch(`readings?select=meter_id,value_from,value_to,consumption,note&meter_id=in.(${mIds})&period=eq.${period}`);
+const readMap={};readings.forEach(r=>readMap[r.meter_id]=r);
+const mwhM=ms.find(m=>m.meter_types.code===‘heat_mwh’);
+const m3M=ms.find(m=>m.meter_types.code===‘heat_m3’);
+const hM=ms.find(m=>m.meter_types.code===‘heat_h’);
+const wM=ms.find(m=>m.meter_types.code===‘water_m3’);
+allCsv+=`UAB "Mano Būstas Vakarai"\n${addr.name}\nAPSKAITOS PRIETAISŲ PARODYMAI ${menLabel}\n\n`;
+allCsv+=`Prietaiso pavadinimas;Mat. vnt.;mėn. pradž.;mėn. gale;skirtumas;Pastabos\n`;
+const serial=mwhM?.meter_serial||’’;
+const rMwh=readMap[mwhM?.id];const rM3=readMap[m3M?.id];const rH=readMap[hM?.id];const rW=readMap[wM?.id];
+allCsv+=`Šilumos skaitiklis Gamykl. Nr. ${serial};MWh/kWh;${rMwh?rMwh.value_from:''};${rMwh?rMwh.value_to:''};${rMwh?Number(rMwh.consumption):''};${rMwh?rMwh.note||'':''}\n`;
+allCsv+=`;m3;${rM3?rM3.value_from:''};${rM3?rM3.value_to:''};${rM3?Number(rM3.consumption):''}\n`;
+allCsv+=`;val;${rH?rH.value_from:''};${rH?rH.value_to:''};${rH?Number(rH.consumption):''}\n`;
+if(wM)allCsv+=`Vandens skaitiklis prieš boilerį gamyklinis nr. ${wM.meter_serial||''};m3;${rW?rW.value_from:''};${rW?rW.value_to:''};${rW?Number(rW.consumption):''}\n`;
+allCsv+=`\nDuomenų fiksavimo data: ${new Date().toLocaleDateString('lt-LT')}\n\n---\n\n`;
 }
-function switchTab(tab) {
-  ['home','report','config'].forEach(t=>{
-    document.getElementById('tab-'+t).classList.toggle('on',t===tab);
-  });
-  if (tab==='home') {
-    if (curAddr) { document.getElementById('view-fill').classList.add('active'); document.getElementById('view-select').classList.remove('active'); }
-    else { document.getElementById('view-select').classList.add('active'); document.getElementById('view-fill').classList.remove('active'); }
-    document.getElementById('view-report').classList.remove('active');
-    document.getElementById('view-config').classList.remove('active');
-  } else if (tab==='report') {
-    document.getElementById('view-select').classList.remove('active');
-    document.getElementById('view-fill').classList.remove('active');
-    document.getElementById('view-report').classList.add('active');
-    document.getElementById('view-config').classList.remove('active');
-    document.getElementById('hdr-title').textContent='Ataskaitos';
-    document.getElementById('hdr-sub').textContent='Pasirinkite parametrus';
-  } else {
-    document.getElementById('view-select').classList.remove('active');
-    document.getElementById('view-fill').classList.remove('active');
-    document.getElementById('view-report').classList.remove('active');
-    document.getElementById('view-config').classList.add('active');
-    document.getElementById('hdr-title').textContent='Nustatymai';
-    document.getElementById('hdr-sub').textContent='Supabase konfigūracija';
-  }
+const b=new Blob([’\uFEFF’+allCsv],{type:‘text/csv;charset=utf-8;’});
+const u=URL.createObjectURL(b);const a=document.createElement(‘a’);
+a.href=u;a.download=`siluma_${period}.csv`;a.click();
+showT(‘XLS eksportuotas!’,‘ok’);
 }
 
-// ── TOAST ──
-function showT(msg,type) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='toast '+type+' show';
-  setTimeout(()=>t.classList.remove('show'),2400);
+// ── TABS ──
+function switchTab(tab){
+if(tab===‘report’&&userRole!==‘admin’){showT(‘Tik admin!’,‘er’);return;}
+[‘home’,‘report’,‘config’].forEach(t=>document.getElementById(‘tab-’+t).classList.toggle(‘on’,t===tab));
+document.getElementById(‘view-select’).classList.toggle(‘active’,tab===‘home’&&!curAddr);
+document.getElementById(‘view-fill’).classList.toggle(‘active’,tab===‘home’&&!!curAddr);
+document.getElementById(‘view-report’).classList.toggle(‘active’,tab===‘report’);
+document.getElementById(‘view-config’).classList.toggle(‘active’,tab===‘config’);
+if(tab===‘home’&&!curAddr){document.getElementById(‘hdr-title’).textContent=‘Skaitiklių sistema’;document.getElementById(‘hdr-sub’).textContent=‘Pasirinkite adresą’;}
+if(tab===‘report’){document.getElementById(‘hdr-title’).textContent=‘Ataskaitos’;document.getElementById(‘hdr-sub’).textContent=‘Pasirinkite parametrus’;}
+if(tab===‘config’){document.getElementById(‘hdr-title’).textContent=‘Paskyra’;document.getElementById(‘hdr-sub’).textContent=userRole===‘admin’?‘Administratorius’:‘Nurašinėtojas’;}
+}
+
+function showT(msg,type){
+const t=document.getElementById(‘toast’);
+t.textContent=msg;t.className=‘toast ‘+(type||’’)+’ show’;
+setTimeout(()=>t.classList.remove(‘show’),2400);
 }
 </script>
+
 </body>
 </html>

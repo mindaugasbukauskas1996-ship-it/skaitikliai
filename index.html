@@ -229,12 +229,12 @@ function loginAs(role) {
 }
 
 function enterApp(){
-  document.getElementById('view-pin').classList.add('hidden');
+  const roleScreen = document.getElementById('view-role');
+  if(roleScreen) roleScreen.classList.add('hidden');
   const roleEl = document.getElementById('hdr-role');
   roleEl.textContent = userRole==='admin'?'Admin':'Nurašinėtojas';
   if(userRole==='admin') roleEl.classList.add('admin');
   document.getElementById('cfg-info-text').textContent = 'Prisijungęs kaip: '+(userRole==='admin'?'Administratorius':'Nurašinėtojas');
-  // hide report tab for tech
   document.getElementById('tab-report').classList.toggle('hidden', userRole==='tech');
   loadAddresses();
 }

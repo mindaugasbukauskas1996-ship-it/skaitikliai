@@ -103,13 +103,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:12px;color:var(--muted);font-size:.85rem;}
 .spinner{width:28px;height:28px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-#view-pin{position:fixed;inset:0;background:#111827;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-#view-pin.hidden{display:none;}
-.pin-logo{font-size:2.5rem;margin-bottom:8px;}
-.pin-title{color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:4px;}
-.pin-sub{color:#9ca3af;font-size:.78rem;}
-.pin-big-btn{display:block;width:240px;padding:20px;background:#1f2937;color:#fff;font-size:1rem;font-weight:700;border-radius:14px;text-align:center;text-decoration:none;border:2px solid #374151;margin-bottom:12px;}
-.pin-big-btn:active{background:#374151;}
+.role-screen{position:fixed;inset:0;background:#111827;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;}
+.role-screen.hidden{display:none;}
+.role-logo{font-size:3rem;margin-bottom:12px;}
+.role-title{color:#fff;font-size:1.2rem;font-weight:700;margin-bottom:6px;}
+.role-sub{color:#9ca3af;font-size:.82rem;margin-bottom:32px;}
+.role-btns{display:flex;flex-direction:column;gap:14px;width:260px;}
+.role-btn{display:block;padding:20px 24px;background:#1f2937;color:#fff;font-size:1rem;font-weight:700;border-radius:16px;text-align:center;text-decoration:none;border:2px solid #374151;letter-spacing:.01em;}
+.role-btn:hover{background:#374151;}
+.role-btn:active{background:#4b5563;transform:scale(.98);}
 /* CONFIG */
 #view-config{display:none;}#view-config.active{display:block;}
 .cfg-wrap{padding:16px 12px;}
@@ -125,13 +127,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </head>
 <body>
 
-<div id="view-pin">
-  <div class="pin-logo">🔒</div>
-  <div class="pin-title">Skaitiklių sistema</div>
-  <div class="pin-sub" style="margin-bottom:32px;">Pasirinkite prisijungimą</div>
-  <div style="display:flex;flex-direction:column;gap:16px;width:240px;">
-    <a href="#" class="pin-big-btn" id="btn-admin">1 — Administratorius</a>
-    <a href="#" class="pin-big-btn" id="btn-tech">2 — Nurašinėtojas</a>
+<div id="view-role" class="role-screen">
+  <div class="role-logo">⚡</div>
+  <div class="role-title">Skaitiklių sistema</div>
+  <div class="role-sub">Pasirinkite vartotoją</div>
+  <div class="role-btns">
+    <a href="?role=admin" class="role-btn">🔑 Administratorius</a>
+    <a href="?role=tech" class="role-btn">📋 Nurašinėtojas</a>
   </div>
 </div>
 
@@ -236,7 +238,7 @@ function enterApp(){
   document.getElementById('tab-report').classList.toggle('hidden', userRole==='tech');
   loadAddresses();
 }
-function logout(){ userRole=null; document.getElementById('view-pin').classList.remove('hidden'); showSelect(); }
+function logout(){ window.location.href = window.location.pathname; }
 
 // ── SUPABASE ──
 async function sbFetch(path, opts={}) {
@@ -257,26 +259,25 @@ window.addEventListener('DOMContentLoaded',()=>{
   curPeriod=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('rep-period').value=curPeriod;
 
-  // Login buttons
-  document.getElementById('btn-admin').addEventListener('click',function(e){e.preventDefault();loginAs('admin');});
-  document.getElementById('btn-tech').addEventListener('click',function(e){e.preventDefault();loginAs('tech');});
+  // Read role from URL param
+  const params = new URLSearchParams(window.location.search);
+  const role = params.get('role');
+  if (role === 'admin' || role === 'tech') {
+    userRole = role;
+    document.getElementById('view-role').classList.add('hidden');
+    enterApp();
+  }
 
-  // Navigation
+  // Navigation listeners
   document.getElementById('btn-back').addEventListener('click',function(){showSelect();});
   document.getElementById('btn-logout').addEventListener('click',function(){logout();});
   document.getElementById('tab-home').addEventListener('click',function(){switchTab('home');});
   document.getElementById('tab-report').addEventListener('click',function(){switchTab('report');});
   document.getElementById('tab-config').addEventListener('click',function(){switchTab('config');});
-
-  // Filters
   document.getElementById('f-all').addEventListener('click',function(){setF('all',this);});
   document.getElementById('f-pending').addEventListener('click',function(){setF('pending',this);});
   document.getElementById('f-done').addEventListener('click',function(){setF('done',this);});
-
-  // Search
   document.getElementById('search').addEventListener('input',applyF);
-
-  // Report
   document.getElementById('btn-genrep').addEventListener('click',function(){generateReport();});
   document.getElementById('btn-xls').addEventListener('click',function(){exportXLS();});
 });

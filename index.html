@@ -115,7 +115,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:240px;}
 .pin-btn{height:64px;border:none;border-radius:14px;background:#1f2937;color:#fff;font-size:1.4rem;font-weight:600;cursor:pointer;transition:background .1s,transform .1s;-webkit-appearance:none;touch-action:manipulation;}
 .pin-btn:active{background:#374151;transform:scale(.95);}
-.pin-btn.del{font-size:1.1rem;}.pin-btn.empty{background:transparent;cursor:default;pointer-events:none;}
+.pin-btn.del{font-size:1.1rem;}.pin-btn.empty{background:transparent !important;pointer-events:none !important;visibility:hidden;}
 .pin-shake{animation:shake .3s;}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 /* CONFIG */
@@ -317,24 +317,16 @@ window.addEventListener('DOMContentLoaded',()=>{
   curPeriod=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('rep-period').value=curPeriod;
 
-  // PIN pad — touchstart pirmenybė, click atsarginė
-  const pad=document.getElementById('pin-pad');
+  // PIN pad — iPhone Safari friendly
   function handlePin(val){
     if(val==='del') pinDel();
     else if(val!=='') pinPress(val);
   }
-  pad.addEventListener('touchstart',function(e){
-    e.preventDefault();
-    const btn=e.target.closest('[data-val]');
-    if(!btn) return;
-    handlePin(btn.dataset.val);
-    btn.style.background='#374151';
-    setTimeout(()=>{btn.style.background='';},150);
-  },{passive:false});
-  pad.addEventListener('click',function(e){
-    const btn=e.target.closest('[data-val]');
-    if(!btn) return;
-    handlePin(btn.dataset.val);
+  document.querySelectorAll('.pin-btn').forEach(btn=>{
+    btn.addEventListener('click',function(e){
+      e.stopPropagation();
+      handlePin(this.dataset.val);
+    });
   });
 });
 

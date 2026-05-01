@@ -132,8 +132,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="role-title">Skaitiklių sistema</div>
   <div class="role-sub">Pasirinkite vartotoją</div>
   <div class="role-btns">
-    <a href="?role=admin" class="role-btn">🔑 Administratorius</a>
-    <a href="?role=tech" class="role-btn">📋 Nurašinėtojas</a>
+    <a href="#admin" class="role-btn">🔑 Administratorius</a>
+    <a href="#tech" class="role-btn">📋 Nurašinėtojas</a>
   </div>
 </div>
 
@@ -238,7 +238,7 @@ function enterApp(){
   document.getElementById('tab-report').classList.toggle('hidden', userRole==='tech');
   loadAddresses();
 }
-function logout(){ window.location.href = window.location.pathname; }
+function logout(){ window.location.hash = ''; document.getElementById('view-role').classList.remove('hidden'); showSelect(); }
 
 // ── SUPABASE ──
 async function sbFetch(path, opts={}) {
@@ -255,31 +255,41 @@ let addresses=[], curAddr=null, curPeriod='', apartments=[], meters=[], prevRead
 
 // ── INIT ──
 window.addEventListener('DOMContentLoaded',()=>{
-  const now=new Date();
-  curPeriod=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  document.getElementById('rep-period').value=curPeriod;
+  try {
+    const now=new Date();
+    curPeriod=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
 
-  // Read role from URL param
-  const params = new URLSearchParams(window.location.search);
-  const role = params.get('role');
-  if (role === 'admin' || role === 'tech') {
-    userRole = role;
-    document.getElementById('view-role').classList.add('hidden');
-    enterApp();
+    // Safe getElementById helper
+    function on(id, ev, fn){ const el=document.getElementById(id); if(el) el.addEventListener(ev,fn); }
+
+    on('btn-back','click',()=>showSelect());
+    on('btn-logout','click',()=>logout());
+    on('tab-home','click',()=>switchTab('home'));
+    on('tab-report','click',()=>switchTab('report'));
+    on('tab-config','click',()=>switchTab('config'));
+    on('f-all','click',function(){setF('all',this);});
+    on('f-pending','click',function(){setF('pending',this);});
+    on('f-done','click',function(){setF('done',this);});
+    on('search','input',applyF);
+    on('btn-genrep','click',()=>generateReport());
+    on('btn-xls','click',()=>exportXLS());
+    on('rep-period','change',()=>{});
+
+    // Read role from hash (#admin or #tech)
+    function checkRole(){
+      const hash = window.location.hash.replace('#','');
+      if (hash === 'admin' || hash === 'tech') {
+        userRole = hash;
+        const rs = document.getElementById('view-role');
+        if(rs) rs.classList.add('hidden');
+        enterApp();
+      }
+    }
+    window.addEventListener('hashchange', checkRole);
+    checkRole();
+  } catch(e) {
+    document.body.innerHTML = '<div style="color:red;padding:20px;font-size:14px;">Klaida: '+e.message+'<br>'+e.stack+'</div>';
   }
-
-  // Navigation listeners
-  document.getElementById('btn-back').addEventListener('click',function(){showSelect();});
-  document.getElementById('btn-logout').addEventListener('click',function(){logout();});
-  document.getElementById('tab-home').addEventListener('click',function(){switchTab('home');});
-  document.getElementById('tab-report').addEventListener('click',function(){switchTab('report');});
-  document.getElementById('tab-config').addEventListener('click',function(){switchTab('config');});
-  document.getElementById('f-all').addEventListener('click',function(){setF('all',this);});
-  document.getElementById('f-pending').addEventListener('click',function(){setF('pending',this);});
-  document.getElementById('f-done').addEventListener('click',function(){setF('done',this);});
-  document.getElementById('search').addEventListener('input',applyF);
-  document.getElementById('btn-genrep').addEventListener('click',function(){generateReport();});
-  document.getElementById('btn-xls').addEventListener('click',function(){exportXLS();});
 });
 
 // ── PERIOD LABEL ──

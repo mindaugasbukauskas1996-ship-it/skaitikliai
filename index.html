@@ -142,19 +142,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
     <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
   </div>
-  <div class="pin-pad">
-    <button class="pin-btn" onclick="pinPress('1')">1</button>
-    <button class="pin-btn" onclick="pinPress('2')">2</button>
-    <button class="pin-btn" onclick="pinPress('3')">3</button>
-    <button class="pin-btn" onclick="pinPress('4')">4</button>
-    <button class="pin-btn" onclick="pinPress('5')">5</button>
-    <button class="pin-btn" onclick="pinPress('6')">6</button>
-    <button class="pin-btn" onclick="pinPress('7')">7</button>
-    <button class="pin-btn" onclick="pinPress('8')">8</button>
-    <button class="pin-btn" onclick="pinPress('9')">9</button>
-    <button class="pin-btn empty"></button>
-    <button class="pin-btn" onclick="pinPress('0')">0</button>
-    <button class="pin-btn del" onclick="pinDel()">⌫</button>
+  <div class="pin-pad" id="pin-pad">
+    <button class="pin-btn" data-val="1">1</button>
+    <button class="pin-btn" data-val="2">2</button>
+    <button class="pin-btn" data-val="3">3</button>
+    <button class="pin-btn" data-val="4">4</button>
+    <button class="pin-btn" data-val="5">5</button>
+    <button class="pin-btn" data-val="6">6</button>
+    <button class="pin-btn" data-val="7">7</button>
+    <button class="pin-btn" data-val="8">8</button>
+    <button class="pin-btn" data-val="9">9</button>
+    <button class="pin-btn empty" data-val=""></button>
+    <button class="pin-btn" data-val="0">0</button>
+    <button class="pin-btn del" data-val="del">⌫</button>
   </div>
 </div>
 
@@ -242,7 +242,7 @@ const MEN = ['','sausis','vasaris','kovas','balandis','gegužė','birželis','li
 const MEN_GEN = ['','sausio','vasario','kovo','balandžio','gegužės','birželio','liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];
 
 // ── ROLE ──
-let userRole = null; // 'tech' | 'admin'
+let userRole = null;
 let pinVal = '';
 
 function pinPress(d) {
@@ -264,6 +264,28 @@ function pinPress(d) {
 }
 function pinDel(){ pinVal=pinVal.slice(0,-1); updatePinDots(); }
 function updatePinDots(){ for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<pinVal.length); }
+
+// Attach PIN pad events — both touch and click
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('pin-pad').addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    const btn = e.target.closest('.pin-btn');
+    if (!btn) return;
+    const val = btn.dataset.val;
+    if (val === 'del') pinDel();
+    else if (val) pinPress(val);
+    btn.style.background = '#374151';
+    setTimeout(()=>btn.style.background='', 150);
+  }, {passive: false});
+
+  document.getElementById('pin-pad').addEventListener('click', function(e) {
+    const btn = e.target.closest('.pin-btn');
+    if (!btn) return;
+    const val = btn.dataset.val;
+    if (val === 'del') pinDel();
+    else if (val) pinPress(val);
+  });
+});
 function enterApp(){
   document.getElementById('view-pin').classList.add('hidden');
   const roleEl = document.getElementById('hdr-role');
@@ -294,9 +316,26 @@ window.addEventListener('DOMContentLoaded',()=>{
   const now=new Date();
   curPeriod=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('rep-period').value=curPeriod;
-  // PWA install prompt
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;});
+
+  // PIN pad — touchstart pirmenybė, click atsarginė
+  const pad=document.getElementById('pin-pad');
+  function handlePin(val){
+    if(val==='del') pinDel();
+    else if(val!=='') pinPress(val);
+  }
+  pad.addEventListener('touchstart',function(e){
+    e.preventDefault();
+    const btn=e.target.closest('[data-val]');
+    if(!btn) return;
+    handlePin(btn.dataset.val);
+    btn.style.background='#374151';
+    setTimeout(()=>{btn.style.background='';},150);
+  },{passive:false});
+  pad.addEventListener('click',function(e){
+    const btn=e.target.closest('[data-val]');
+    if(!btn) return;
+    handlePin(btn.dataset.val);
+  });
 });
 
 // ── PERIOD LABEL ──

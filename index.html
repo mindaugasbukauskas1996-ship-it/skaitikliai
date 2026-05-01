@@ -130,8 +130,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="pin-title">Skaitiklių sistema</div>
   <div class="pin-sub" style="margin-bottom:32px;">Pasirinkite prisijungimą</div>
   <div style="display:flex;flex-direction:column;gap:16px;width:240px;">
-    <a href="#" class="pin-big-btn" onclick="loginAs('admin');return false;">1 — Administratorius</a>
-    <a href="#" class="pin-big-btn" onclick="loginAs('tech');return false;">2 — Nurašinėtojas</a>
+    <a href="#" class="pin-big-btn" id="btn-admin">1 — Administratorius</a>
+    <a href="#" class="pin-big-btn" id="btn-tech">2 — Nurašinėtojas</a>
   </div>
 </div>
 
@@ -154,14 +154,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <div id="view-fill">
   <div class="period-bar">
-    <button class="back-btn" onclick="showSelect()">&#8592; Atgal</button>
+    <button class="back-btn" id="btn-back">&#8592; Atgal</button>
     <div class="period-lbl" id="period-lbl">—</div>
   </div>
   <div class="toolbar">
     <div class="sw"><span style="color:#9ca3af;font-size:.82rem;">&#128269;</span><input type="search" id="search" placeholder="Vardas arba butas..." autocomplete="off"/></div>
-    <button class="tbtn on" onclick="setF('all',this)">Visi</button>
-    <button class="tbtn" onclick="setF('pending',this)">Liko</button>
-    <button class="tbtn" onclick="setF('done',this)">Atlikta</button>
+    <button class="tbtn on" id="f-all">Visi</button>
+    <button class="tbtn" id="f-pending">Liko</button>
+    <button class="tbtn" id="f-done">Atlikta</button>
   </div>
   <div class="stats">
     <div class="sc bl"><div class="sv" id="s-tot">—</div><div class="sl">Butai</div></div>
@@ -185,8 +185,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <input type="month" id="rep-period"/>
         </div>
       </div>
-      <button class="gen-btn" onclick="generateReport()">📊 Generuoti ataskaitą</button>
-      <button class="gen-btn" style="background:#16a34a;margin-top:8px;" onclick="exportXLS()">📄 Eksportuoti šilumos XLS</button>
+      <button class="gen-btn" id="btn-genrep">📊 Generuoti ataskaitą</button>
+      <button class="gen-btn" style="background:#16a34a;margin-top:8px;" id="btn-xls">📄 Eksportuoti šilumos XLS</button>
     </div>
     <div id="rep-output"></div>
   </div>
@@ -198,14 +198,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="cfg-title">⚙️ Paskyra</div>
       <div class="cfg-info" id="cfg-info-text">Prisijungęs kaip: —</div>
     </div>
-    <button class="logout-btn" onclick="logout()">🔒 Atsijungti</button>
+    <button class="logout-btn" id="btn-logout">🔒 Atsijungti</button>
   </div>
 </div>
 
 <div class="btm" id="btm-bar">
-  <button class="btm-tab on" id="tab-home" onclick="switchTab('home')"><span class="ti">🏠</span>Nurašymas</button>
-  <button class="btm-tab" id="tab-report" onclick="switchTab('report')"><span class="ti">📊</span>Ataskaita</button>
-  <button class="btm-tab" id="tab-config" onclick="switchTab('config')"><span class="ti">⚙️</span>Paskyra</button>
+  <button class="btm-tab on" id="tab-home"><span class="ti">🏠</span>Nurašymas</button>
+  <button class="btm-tab" id="tab-report"><span class="ti">📊</span>Ataskaita</button>
+  <button class="btm-tab" id="tab-config"><span class="ti">⚙️</span>Paskyra</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -256,6 +256,29 @@ window.addEventListener('DOMContentLoaded',()=>{
   const now=new Date();
   curPeriod=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('rep-period').value=curPeriod;
+
+  // Login buttons
+  document.getElementById('btn-admin').addEventListener('click',function(e){e.preventDefault();loginAs('admin');});
+  document.getElementById('btn-tech').addEventListener('click',function(e){e.preventDefault();loginAs('tech');});
+
+  // Navigation
+  document.getElementById('btn-back').addEventListener('click',function(){showSelect();});
+  document.getElementById('btn-logout').addEventListener('click',function(){logout();});
+  document.getElementById('tab-home').addEventListener('click',function(){switchTab('home');});
+  document.getElementById('tab-report').addEventListener('click',function(){switchTab('report');});
+  document.getElementById('tab-config').addEventListener('click',function(){switchTab('config');});
+
+  // Filters
+  document.getElementById('f-all').addEventListener('click',function(){setF('all',this);});
+  document.getElementById('f-pending').addEventListener('click',function(){setF('pending',this);});
+  document.getElementById('f-done').addEventListener('click',function(){setF('done',this);});
+
+  // Search
+  document.getElementById('search').addEventListener('input',applyF);
+
+  // Report
+  document.getElementById('btn-genrep').addEventListener('click',function(){generateReport();});
+  document.getElementById('btn-xls').addEventListener('click',function(){exportXLS();});
 });
 
 // ── PERIOD LABEL ──
@@ -577,7 +600,6 @@ const mf=cFilter===‘all’||(cFilter===‘done’&&isSaved)||(cFilter===‘pen
 c.classList.toggle(‘hidden’,!(mq&&mf));
 });
 }
-document.getElementById(‘search’).addEventListener(‘input’,applyF);
 
 // ── REPORT ──
 async function generateReport(){

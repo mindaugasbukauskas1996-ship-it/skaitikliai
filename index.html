@@ -113,9 +113,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .pin-dot{width:16px;height:16px;border-radius:50%;background:#374151;transition:background .15s;}
 .pin-dot.filled{background:#3b82f6;}.pin-dot.err{background:#dc2626;}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:240px;}
-.pin-btn{height:64px;border:none;border-radius:14px;background:#1f2937;color:#fff;font-size:1.4rem;font-weight:600;cursor:pointer;transition:background .1s,transform .1s;-webkit-appearance:none;touch-action:manipulation;}
-.pin-btn:active{background:#374151;transform:scale(.95);}
-.pin-btn.del{font-size:1.1rem;}.pin-btn.empty{background:transparent !important;pointer-events:none !important;visibility:hidden;}
+.pin-btn{height:64px;border:none;border-radius:14px;background:#1f2937;color:#fff;font-size:1.4rem;font-weight:600;cursor:pointer;transition:background .1s;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;}
+.pin-btn:active{background:#374151;}
+.pin-btn.del{font-size:1.1rem;}
 .pin-shake{animation:shake .3s;}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 /* CONFIG */
@@ -143,18 +143,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
   </div>
   <div class="pin-pad" id="pin-pad">
-    <button class="pin-btn" onclick="pinPress('1')">1</button>
-    <button class="pin-btn" onclick="pinPress('2')">2</button>
-    <button class="pin-btn" onclick="pinPress('3')">3</button>
-    <button class="pin-btn" onclick="pinPress('4')">4</button>
-    <button class="pin-btn" onclick="pinPress('5')">5</button>
-    <button class="pin-btn" onclick="pinPress('6')">6</button>
-    <button class="pin-btn" onclick="pinPress('7')">7</button>
-    <button class="pin-btn" onclick="pinPress('8')">8</button>
-    <button class="pin-btn" onclick="pinPress('9')">9</button>
-    <button class="pin-btn" style="visibility:hidden"></button>
-    <button class="pin-btn" onclick="pinPress('0')">0</button>
-    <button class="pin-btn del" onclick="pinDel()">⌫</button>
+    <div class="pin-btn" onclick="pinPress('1')">1</div>
+    <div class="pin-btn" onclick="pinPress('2')">2</div>
+    <div class="pin-btn" onclick="pinPress('3')">3</div>
+    <div class="pin-btn" onclick="pinPress('4')">4</div>
+    <div class="pin-btn" onclick="pinPress('5')">5</div>
+    <div class="pin-btn" onclick="pinPress('6')">6</div>
+    <div class="pin-btn" onclick="pinPress('7')">7</div>
+    <div class="pin-btn" onclick="pinPress('8')">8</div>
+    <div class="pin-btn" onclick="pinPress('9')">9</div>
+    <div class="pin-btn" style="visibility:hidden"></div>
+    <div class="pin-btn" onclick="pinPress('0')">0</div>
+    <div class="pin-btn del" onclick="pinDel()">⌫</div>
   </div>
 </div>
 

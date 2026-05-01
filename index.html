@@ -107,17 +107,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #view-pin.hidden{display:none;}
 .pin-logo{font-size:2.5rem;margin-bottom:8px;}
 .pin-title{color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:4px;}
-.pin-sub{color:#9ca3af;font-size:.78rem;margin-bottom:8px;}
-.pin-role-hint{color:#6b7280;font-size:.68rem;margin-bottom:24px;}
-.pin-dots{display:flex;gap:14px;margin-bottom:32px;}
-.pin-dot{width:16px;height:16px;border-radius:50%;background:#374151;transition:background .15s;}
-.pin-dot.filled{background:#3b82f6;}.pin-dot.err{background:#dc2626;}
-.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:240px;}
-.pin-btn{height:64px;border:none;border-radius:14px;background:#1f2937;color:#fff;font-size:1.4rem;font-weight:600;cursor:pointer;transition:background .1s;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;}
-.pin-btn:active{background:#374151;}
-.pin-btn.del{font-size:1.1rem;}
-.pin-shake{animation:shake .3s;}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pin-sub{color:#9ca3af;font-size:.78rem;}
+.pin-big-btn{display:block;width:240px;padding:20px;background:#1f2937;color:#fff;font-size:1rem;font-weight:700;border-radius:14px;text-align:center;text-decoration:none;border:2px solid #374151;margin-bottom:12px;}
+.pin-big-btn:active{background:#374151;}
 /* CONFIG */
 #view-config{display:none;}#view-config.active{display:block;}
 .cfg-wrap{padding:16px 12px;}
@@ -136,25 +128,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div id="view-pin">
   <div class="pin-logo">🔒</div>
   <div class="pin-title">Skaitiklių sistema</div>
-  <div class="pin-sub">Įveskite PIN kodą</div>
-  <div class="pin-role-hint">Nurašinėtojas: 6699 · Admin: 1122</div>
-  <div class="pin-dots" id="pin-dots">
-    <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
-    <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
-  </div>
-  <div class="pin-pad" id="pin-pad">
-    <div class="pin-btn" onclick="pinPress('1')">1</div>
-    <div class="pin-btn" onclick="pinPress('2')">2</div>
-    <div class="pin-btn" onclick="pinPress('3')">3</div>
-    <div class="pin-btn" onclick="pinPress('4')">4</div>
-    <div class="pin-btn" onclick="pinPress('5')">5</div>
-    <div class="pin-btn" onclick="pinPress('6')">6</div>
-    <div class="pin-btn" onclick="pinPress('7')">7</div>
-    <div class="pin-btn" onclick="pinPress('8')">8</div>
-    <div class="pin-btn" onclick="pinPress('9')">9</div>
-    <div class="pin-btn" style="visibility:hidden"></div>
-    <div class="pin-btn" onclick="pinPress('0')">0</div>
-    <div class="pin-btn del" onclick="pinDel()">⌫</div>
+  <div class="pin-sub" style="margin-bottom:32px;">Pasirinkite prisijungimą</div>
+  <div style="display:flex;flex-direction:column;gap:16px;width:240px;">
+    <a href="#" class="pin-big-btn" onclick="loginAs('admin');return false;">1 — Administratorius</a>
+    <a href="#" class="pin-big-btn" onclick="loginAs('tech');return false;">2 — Nurašinėtojas</a>
   </div>
 </div>
 
@@ -243,27 +220,11 @@ const MEN_GEN = ['','sausio','vasario','kovo','balandžio','gegužės','birželi
 
 // ── ROLE ──
 let userRole = null;
-let pinVal = '';
 
-function pinPress(d) {
-  if (pinVal.length >= 4) return;
-  pinVal += d;
-  updatePinDots();
-  if (pinVal.length === 4) {
-    if (pinVal === PIN_ADMIN) { userRole='admin'; enterApp(); }
-    else if (pinVal === PIN_TECH) { userRole='tech'; enterApp(); }
-    else {
-      document.querySelectorAll('.pin-dot').forEach(el=>el.classList.add('err'));
-      document.getElementById('pin-dots').classList.add('pin-shake');
-      setTimeout(()=>{ pinVal=''; updatePinDots();
-        document.querySelectorAll('.pin-dot').forEach(el=>el.classList.remove('err'));
-        document.getElementById('pin-dots').classList.remove('pin-shake');
-      }, 700);
-    }
-  }
+function loginAs(role) {
+  userRole = role;
+  enterApp();
 }
-function pinDel(){ pinVal=pinVal.slice(0,-1); updatePinDots(); }
-function updatePinDots(){ for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<pinVal.length); }
 
 function enterApp(){
   document.getElementById('view-pin').classList.add('hidden');
@@ -275,7 +236,7 @@ function enterApp(){
   document.getElementById('tab-report').classList.toggle('hidden', userRole==='tech');
   loadAddresses();
 }
-function logout(){ userRole=null; pinVal=''; updatePinDots(); document.getElementById('view-pin').classList.remove('hidden'); showSelect(); }
+function logout(){ userRole=null; document.getElementById('view-pin').classList.remove('hidden'); showSelect(); }
 
 // ── SUPABASE ──
 async function sbFetch(path, opts={}) {

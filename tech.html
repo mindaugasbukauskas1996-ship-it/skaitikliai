@@ -110,7 +110,14 @@ function api(path) {
       'apikey': KEY,
       'Authorization': 'Bearer ' + KEY
     }
-  }).then(function(r){ return r.json(); });
+  }).then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(t) {
+        throw new Error('API ' + r.status + ': ' + t);
+      });
+    }
+    return r.json();
+  });
 }
 
 function apiPost(path, data) {
@@ -163,6 +170,8 @@ function loadAddresses() {
         selectAddr(parseInt(this.dataset.id));
       });
     });
+  }).catch(function(e) {
+    document.getElementById('addr-list').innerHTML = '<p style="padding:20px;color:red;">Klaida: ' + e.message + '</p>';
   });
 }
 
@@ -249,14 +258,11 @@ function renderApts() {
 
     var savedNote = isSaved && aptMs[0] && curReadings[aptMs[0].id] ? (curReadings[aptMs[0].id].note || '') : '';
     html += '<textarea class="note" id="note-' + apt.id + '" rows="1" placeholder="Pastabos..."' + (isSaved ? ' disabled' : '') + '>' + savedNote + '</textarea>';
-
-```
-html += '</div>';
-html += '<div class="apt-foot">';
-html += '<div class="apt-tot" id="tot-' + apt.id + '">—</div>';
-html += '<button class="save-btn' + (isSaved ? ' done' : '') + '" id="sbtn-' + apt.id + '" data-id="' + apt.id + '"' + (isSaved ? ' disabled' : '') + '>' + (isSaved ? '✓ Išsaugota' : 'Išsaugoti') + '</button>';
-html += '</div></div>';
-```
+    html += '</div>';
+    html += '<div class="apt-foot">';
+    html += '<div class="apt-tot" id="tot-' + apt.id + '">—</div>';
+    html += '<button class="save-btn' + (isSaved ? ' done' : '') + '" id="sbtn-' + apt.id + '" data-id="' + apt.id + '"' + (isSaved ? ' disabled' : '') + '>' + (isSaved ? '✓ Išsaugota' : 'Išsaugoti') + '</button>';
+    html += '</div></div>';
 
 });
 
@@ -354,7 +360,7 @@ if (Array.isArray(res)) curReadings[ins.meter_id] = res[0];
 chain.then(function() {
 var lbl = apt.apt_label || apt.number;
 document.getElementById(‘apt-’ + aptId).classList.add(‘done’);
-document.getElementById(‘num-’ + aptId).style.background = ‘var(–green)’;
+document.getElementById(‘num-’ + aptId).style.background = ‘var(--green)’;
 document.getElementById(‘st-’ + aptId).textContent = ‘✓ Atlikta’;
 document.getElementById(‘st-’ + aptId).className = ‘apt-status d’;
 btn.textContent = ‘✓ Išsaugota’; btn.classList.add(‘done’);

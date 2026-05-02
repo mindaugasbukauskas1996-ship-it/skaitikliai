@@ -471,21 +471,18 @@ function renderCards(){
 
     const savedNote=isSaved?(curReadings[aptMeters[0]?.id]?.note||''):'';
     bodyHtml+=`<textarea class="note-inp" id="note-${apt.id}" placeholder="Pastabos..." rows="1" ${isSaved?'disabled':''}>${savedNote}</textarea>`;
+    bodyHtml+='</div>';
 
-```
-bodyHtml+='</div>';
-
-const unit=aptMeters[0]?.meter_types?.unit||'kWh';
-let footHtml=`<div class="cf">
+    const unit=aptMeters[0]?.meter_types?.unit||'kWh';
+    let footHtml=`<div class="cf">
   <div><div class="tot-lbl">Suvartota šį mėn.</div><div class="tot-val" id="tot-${apt.id}">— ${isElec?'kWh':unit}</div></div>
   <button class="sbtn ${isSaved?'sv':''}" id="sbtn-${apt.id}" onclick="saveApt(${apt.id})" ${isSaved?'disabled':''}>
     ${isSaved?'✓ Išsaugota':'Išsaugoti ✓'}
   </button></div>`;
 
-card.innerHTML=headHtml+bodyHtml+footHtml;
-container.appendChild(card);
-if(isSaved)updateTotal(apt.id);
-```
+    card.innerHTML=headHtml+bodyHtml+footHtml;
+    container.appendChild(card);
+    if(isSaved)updateTotal(apt.id);
 
 });
 updateStats();applyF();
@@ -557,7 +554,7 @@ for(const ins of inserts){
 const existing=curReadings[ins.meter_id];
 if(existing){
 await sbFetch(`readings?id=eq.${existing.id}`,{method:‘PATCH’,body:{value_to:ins.value_to,note:ins.note},prefer:‘return=minimal’});
-curReadings[ins.meter_id]={…existing,value_to:ins.value_to,note:ins.note};
+curReadings[ins.meter_id]={...existing,value_to:ins.value_to,note:ins.note};
 } else {
 const [created]=await sbFetch(‘readings’,{method:‘POST’,body:ins});
 curReadings[ins.meter_id]=created;
@@ -565,7 +562,7 @@ curReadings[ins.meter_id]=created;
 }
 const card=document.getElementById(‘c’+aptId);
 card.classList.add(‘saved’);card.classList.remove(‘err’);
-document.getElementById(‘nb-’+aptId).style.background=‘var(–green)’;
+document.getElementById(‘nb-’+aptId).style.background=’var(--green)’;
 const bdg=document.getElementById(‘bdg-’+aptId);bdg.textContent=‘✓ Atlikta’;bdg.className=‘cbdg d’;
 btn.textContent=‘✓ Išsaugota’;btn.classList.add(‘sv’);
 aptM.forEach(m=>{const el=document.getElementById(‘iki-’+m.id);if(el)el.disabled=true;});

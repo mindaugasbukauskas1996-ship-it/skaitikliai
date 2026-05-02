@@ -58,6 +58,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ── PERIOD BAR ── */
 .period-bar{background:#fff;border-bottom:1px solid var(--border);padding:9px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:62px;z-index:190;}
 .period-lbl{font-size:.9rem;font-weight:700;flex:1;}
+.period-inp{flex:1;border:1.5px solid var(--inp-b);border-radius:8px;padding:8px 10px;font-size:.9rem;font-weight:700;background:var(--inp);outline:none;color:var(--text);font-family:inherit;cursor:pointer;}
+.period-inp:focus{border-color:var(--blue);}
 .back-btn{padding:9px 13px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;min-height:44px;font-family:inherit;}
 
 /* ── STATS ── */
@@ -274,6 +276,7 @@ var meterList      = [];
 var prevR          = {};     /* meter_id -> value_to (most recent any period) */
 var curR           = {};     /* meter_id -> reading row for CUR_PERIOD */
 var curFilter      = 'all';
+var activePeriod   = CUR_PERIOD;  /* can be changed by admin */
 
 /* ── SUPABASE HELPERS ─────────────────────────────── */
 function sbHead() {
@@ -437,26 +440,70 @@ function renderAddresses() {
 }
 
 /* ── OPEN ADDRESS → APARTMENTS ───────────────────── */
+function periodToLabel(p) {
+  var parts = p.split('-');
+  var m = parseInt(parts[1], 10);
+  return MEN[m] + ' ' + parts[0];
+}
+
 function openAddress(addr) {
-  selAddr    = addr;
-  aptList    = [];
-  meterList  = [];
-  prevR      = {};
-  curR       = {};
-  curFilter  = 'all';
+  selAddr       = addr;
+  aptList       = [];
+  meterList     = [];
+  prevR         = {};
+  curR          = {};
+  curFilter     = 'all';
+  activePeriod  = CUR_PERIOD;
 
   showScreen('screen-apartments');
-  setHdr(addr.name, CUR_LABEL, true, true);
-  document.getElementById('apts-period-lbl').textContent = CUR_LABEL;
+  setHdr(addr.name, periodToLabel(activePeriod), true, true);
   document.getElementById('prog-fill').style.width = '0%';
   document.getElementById('prog-lbl').textContent  = '';
   document.getElementById('apt-list').innerHTML    =
     '<div class="loading"><div class="spinner"></div>Kraunama...</div>';
 
+  /* period bar: admin gets editable month input, tech gets plain label */
+  var pLbl = document.getElementById('apts-period-lbl');
+  if (userRole === 'admin') {
+    var inp = document.createElement('input');
+    inp.type      = 'month';
+    inp.id        = 'period-picker';
+    inp.className = 'period-inp';
+    inp.value     = activePeriod;
+    inp.addEventListener('change', function() {
+      if (this.value) changeActivePeriod(this.value);
+    });
+    pLbl.parentNode.replaceChild(inp, pLbl);
+  } else {
+    /* ensure it's a div (may have been replaced by input on prev visit) */
+    if (pLbl.tagName !== 'DIV') {
+      var div = document.createElement('div');
+      div.className = 'period-lbl';
+      div.id        = 'apts-period-lbl';
+      pLbl.parentNode.replaceChild(div, pLbl);
+      pLbl = div;
+    }
+    pLbl.textContent = periodToLabel(activePeriod);
+  }
+
   resetFilterBtns();
   if (userRole === 'admin') { setActiveTab('tab-home'); }
 
   loadApts(addr.id);
+}
+
+function changeActivePeriod(period) {
+  activePeriod = period;
+  setHdr(selAddr.name, periodToLabel(activePeriod), true, true);
+  document.getElementById('prog-fill').style.width = '0%';
+  document.getElementById('prog-lbl').textContent  = '';
+  document.getElementById('apt-list').innerHTML    =
+    '<div class="loading"><div class="spinner"></div>Kraunama...</div>';
+  prevR = {};
+  curR  = {};
+  resetFilterBtns();
+  curFilter = 'all';
+  loadApts(selAddr.id);
 }
 
 function goBack() {
@@ -487,9 +534,10 @@ function loadApts(addrId) {
         return Promise.reject('__empty__');
       }
       var mIds = ms.map(function(m) { return m.id; }).join(',');
-      /* most recent reading per meter across ALL periods */
+      /* most recent reading BEFORE the active period (= NUO value) */
       return sbGet(
-        'readings?select=meter_id,value_to,period&meter_id=in.(' + mIds + ')&order=period.desc'
+        'readings?select=meter_id,value_to,period&meter_id=in.(' + mIds + ')' +
+        '&period=lt.' + activePeriod + '&order=period.desc'
       );
     })
     .then(function(allPrev) {
@@ -498,10 +546,10 @@ function loadApts(addrId) {
         if (prevR[r.meter_id] === undefined) prevR[r.meter_id] = r.value_to;
       });
       var mIds = meterList.map(function(m) { return m.id; }).join(',');
-      /* current period readings */
+      /* readings for the active period */
       return sbGet(
         'readings?select=id,meter_id,value_from,value_to,note' +
-        '&meter_id=in.(' + mIds + ')&period=eq.' + CUR_PERIOD
+        '&meter_id=in.(' + mIds + ')&period=eq.' + activePeriod
       );
     })
     .then(function(curr) {
@@ -854,7 +902,7 @@ function saveApt(aptId) {
     var iki = iEl ? parseFloat(iEl.value) : NaN;
     if (isNaN(iki)) { toast('Įveskite visus parodymus!', 'er'); ok = false; return; }
     if (iki < nuo)  { toast('IKI negali būti mažesnis už NUO!', 'er'); ok = false; return; }
-    rows.push({ meter_id: m.id, period: CUR_PERIOD, value_from: nuo, value_to: iki, note: note });
+    rows.push({ meter_id: m.id, period: activePeriod, value_from: nuo, value_to: iki, note: note });
   });
   if (!ok) return;
 

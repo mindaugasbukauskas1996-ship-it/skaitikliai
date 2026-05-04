@@ -127,7 +127,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .rep-controls-title{font-size:.88rem;font-weight:700;margin-bottom:10px;}
 .rc-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
 .rc-fld label{display:block;font-size:.7rem;color:var(--muted);margin-bottom:3px;font-weight:600;}
-.rc-fld select,.rc-fld input[type=month]{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:9px 10px;font-size:.88rem;color:var(--text);background:var(--inp);outline:none;font-family:inherit;}
+.rc-fld select,.rc-fld input[type=month],.rc-fld input[type=number]{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:9px 10px;font-size:.88rem;color:var(--text);background:var(--inp);outline:none;font-family:inherit;}
+.calc-summary{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 14px;font-size:.8rem;background:#f9fafb;border-bottom:1px solid var(--border);}
+.calc-summary b{color:var(--text);}
+.rep-table tfoot td{background:#111827;color:#fff;font-weight:700;padding:8px 10px;}
 .gen-btn{width:100%;background:#111827;color:#fff;border:none;border-radius:9px;padding:12px;font-size:.9rem;font-weight:700;cursor:pointer;min-height:44px;font-family:inherit;margin-top:4px;}
 .rep-table-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;}
 .rep-table-title{padding:10px 14px;font-size:.84rem;font-weight:700;border-bottom:1px solid var(--border);background:#f9fafb;}
@@ -236,6 +239,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="btm-spacer"></div>
 </div>
 
+<!-- ── SCREEN: ELECTRICITY CALCULATOR (admin) ── -->
+<div id="screen-calc" class="screen">
+  <div class="report-wrap">
+    <div class="rep-controls">
+      <div class="rep-controls-title">&#x26A1; Elektros skaičiuoklė</div>
+      <div class="rc-row">
+        <div class="rc-fld">
+          <label>Adresas</label>
+          <select id="calc-addr"></select>
+        </div>
+        <div class="rc-fld">
+          <label>Mėnuo</label>
+          <input type="month" id="calc-month" />
+        </div>
+      </div>
+      <div class="rc-row">
+        <div class="rc-fld">
+          <label>Bendra elektra (kWh)</label>
+          <input type="number" id="calc-total-kwh" placeholder="pvz. 1042" inputmode="decimal" step="any" />
+        </div>
+        <div class="rc-fld">
+          <label>Elektros kaina (EUR/kWh)</label>
+          <input type="number" id="calc-price" placeholder="pvz. 0.24" inputmode="decimal" step="any" />
+        </div>
+      </div>
+      <div class="rc-row">
+        <div class="rc-fld">
+          <label>BNO koeficientas (%)</label>
+          <input type="number" id="calc-bno" value="30" inputmode="decimal" step="any" />
+        </div>
+        <div class="rc-fld">
+          <label>kWh/m³ karštam vandeniui</label>
+          <input type="number" id="calc-kwh-m3" value="20" inputmode="decimal" step="any" />
+        </div>
+      </div>
+      <button class="gen-btn" id="btn-calc">&#x26A1; Skaičiuoti</button>
+    </div>
+    <div id="calc-output"></div>
+  </div>
+  <div class="btm-spacer"></div>
+</div>
+
 <!-- ── BOTTOM NAV (admin) ── -->
 <div class="btm hidden" id="btm-nav">
   <button class="btm-tab on" id="tab-home">
@@ -243,6 +288,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </button>
   <button class="btm-tab" id="tab-report">
     <span class="ti">&#x1F4CA;</span>Ataskaita
+  </button>
+  <button class="btm-tab" id="tab-calc">
+    <span class="ti">&#x26A1;</span>Elektra
   </button>
 </div>
 
@@ -350,7 +398,9 @@ document.getElementById('f-pending').addEventListener('click', function() { setF
 document.getElementById('f-done').addEventListener('click', function() { setFilter('done', this); });
 document.getElementById('tab-home').addEventListener('click', function() { switchTab('home'); });
 document.getElementById('tab-report').addEventListener('click', function() { switchTab('report'); });
+document.getElementById('tab-calc').addEventListener('click', function() { switchTab('calc'); });
 document.getElementById('btn-genrep').addEventListener('click', generateReport);
+document.getElementById('btn-calc').addEventListener('click', runCalc);
 
 if (userRole) {
   goToAddresses();
@@ -985,7 +1035,6 @@ function switchTab(tab) {
   } else if (tab === 'report') {
     showScreen('screen-report');
     setHdr('Ataskaita', 'Pasirinkite parametrus', true, false);
-    /* populate address select */
     var sel = document.getElementById('rep-addr');
     sel.innerHTML = '<option value="">Visi adresai</option>';
     addrList.forEach(function(a) {
@@ -995,6 +1044,20 @@ function switchTab(tab) {
       sel.appendChild(opt);
     });
     document.getElementById('rep-month').value = CUR_PERIOD;
+  } else if (tab === 'calc') {
+    showScreen('screen-calc');
+    setHdr('Elektros skaičiuoklė', 'Karališkių elektra', true, false);
+    var cSel = document.getElementById('calc-addr');
+    cSel.innerHTML = '';
+    addrList.forEach(function(a) {
+      var opt = document.createElement('option');
+      opt.value       = a.id;
+      opt.textContent = a.name;
+      cSel.appendChild(opt);
+    });
+    if (!document.getElementById('calc-month').value) {
+      document.getElementById('calc-month').value = CUR_PERIOD;
+    }
   }
 }
 
@@ -1143,6 +1206,167 @@ function generateReport() {
   }
 
   next();
+}
+
+/* ── ELECTRICITY CALCULATOR ───────────────────────── */
+function runCalc() {
+  var addrId     = document.getElementById('calc-addr').value;
+  var month      = document.getElementById('calc-month').value;
+  var totalKwh   = parseFloat(document.getElementById('calc-total-kwh').value);
+  var price      = parseFloat(document.getElementById('calc-price').value);
+  var bnoCoeff   = parseFloat(document.getElementById('calc-bno').value) / 100;
+  var kwhPerM3   = parseFloat(document.getElementById('calc-kwh-m3').value);
+  var out        = document.getElementById('calc-output');
+
+  if (!addrId || !month) { toast('Pasirinkite adresą ir mėnesį', 'err'); return; }
+  if (isNaN(totalKwh) || isNaN(price) || isNaN(bnoCoeff) || isNaN(kwhPerM3)) {
+    toast('Įveskite visus skaičius', 'err'); return;
+  }
+
+  out.innerHTML = '<div class="loading">Kraunama…</div>';
+
+  var addr = addrList.filter(function(a) { return String(a.id) === String(addrId); })[0];
+
+  sbGet('apartments?address_id=eq.' + addrId + '&order=apt_number.asc')
+    .then(function(apts) {
+      if (!apts.length) { out.innerHTML = '<div class="loading">Nėra butų</div>'; return; }
+      var aptIds = apts.map(function(a) { return a.id; }).join(',');
+      sbGet('meters?select=id,apartment_id,meter_types(code,label,unit)&apartment_id=in.(' + aptIds + ')')
+        .then(function(meters) {
+          sbGet('meter_readings?meter_id=in.(' + meters.map(function(m){return m.id;}).join(',') + ')&period=eq.' + month)
+            .then(function(readings) {
+              showCalcResults(apts, meters, readings, totalKwh, price, bnoCoeff, kwhPerM3, month, addr, out);
+            })
+            .catch(function(e) { out.innerHTML = '<div class="loading">⚠ ' + esc(e.message) + '</div>'; });
+        })
+        .catch(function(e) { out.innerHTML = '<div class="loading">⚠ ' + esc(e.message) + '</div>'; });
+    })
+    .catch(function(e) { out.innerHTML = '<div class="loading">⚠ ' + esc(e.message) + '</div>'; });
+}
+
+function showCalcResults(apts, meters, readings, totalKwh, price, bnoCoeff, kwhPerM3, month, addr, out) {
+  var readMap = {};
+  readings.forEach(function(r) { readMap[r.meter_id] = r; });
+
+  var meterMap = {};
+  meters.forEach(function(m) { meterMap[m.id] = m; });
+
+  var aptMeters = {};
+  meters.forEach(function(m) {
+    if (!aptMeters[m.apartment_id]) aptMeters[m.apartment_id] = [];
+    aptMeters[m.apartment_id].push(m);
+  });
+
+  var rows = [];
+  var sumHotKwh  = 0;
+  var sumHeatKwh = 0;
+
+  apts.forEach(function(apt) {
+    var ms      = aptMeters[apt.id] || [];
+    var hotWaterM3  = null;
+    var heatKwhRaw  = null;
+
+    ms.forEach(function(m) {
+      var code = m.meter_types ? m.meter_types.code : '';
+      var r    = readMap[m.id];
+      var cons = r && r.value_from != null && r.value_to != null ? (r.value_to - r.value_from) : null;
+      if (code === 'hot_water' || code === 'water_m3') {
+        if (cons !== null) hotWaterM3 = (hotWaterM3 || 0) + cons;
+      }
+      if (code === 'heat_mwh') {
+        if (cons !== null) heatKwhRaw = (heatKwhRaw || 0) + cons;
+      }
+    });
+
+    var hotKwh    = hotWaterM3  !== null ? hotWaterM3  * kwhPerM3 : null;
+    var heatDirect = heatKwhRaw !== null ? heatKwhRaw * (1 - bnoCoeff) : null;
+
+    rows.push({
+      apt:        apt,
+      hotWaterM3: hotWaterM3,
+      hotKwh:     hotKwh,
+      heatKwhRaw: heatKwhRaw,
+      heatDirect: heatDirect
+    });
+
+    if (hotKwh    !== null) sumHotKwh  += hotKwh;
+    if (heatKwhRaw !== null) sumHeatKwh += heatKwhRaw;
+  });
+
+  var bnoTotal   = totalKwh - sumHotKwh - sumHeatKwh;
+  var bnoPerApt  = bnoTotal / apts.length;
+
+  var mLbl = MEN[parseInt(month.split('-')[1], 10)] + ' ' + month.split('-')[0];
+
+  var html = '<div class="calc-summary">' +
+    '<span>Bendra elektra:</span><span><b>' + totalKwh.toFixed(2) + ' kWh</b></span>' +
+    '<span>Karštas vanduo iš viso:</span><span>' + sumHotKwh.toFixed(2) + ' kWh</span>' +
+    '<span>Šildymas iš viso:</span><span>' + sumHeatKwh.toFixed(2) + ' kWh</span>' +
+    '<span>BNO šildymas iš viso:</span><span>' + bnoTotal.toFixed(2) + ' kWh</span>' +
+    '<span>BNO vienam butui:</span><span>' + bnoPerApt.toFixed(2) + ' kWh</span>' +
+    '<span>Kaina:</span><span>' + price.toFixed(4) + ' EUR/kWh</span>' +
+    '</div>';
+
+  html += '<div class="rep-scroll"><table class="rep-table"><thead><tr>' +
+    '<th>Butas</th><th>Abonentas</th>' +
+    '<th>K.V. m³</th><th>K.V. kWh</th><th>K.V. EUR</th>' +
+    '<th>Šild. kWh</th><th>Šild. EUR</th>' +
+    '<th>BNO kWh</th><th>BNO EUR</th>' +
+    '<th>Viso kWh</th><th>Viso EUR</th>' +
+    '</tr></thead><tbody>';
+
+  var csvData = [['Butas','Abonentas','K.V. m3','K.V. kWh','K.V. EUR','Sild. kWh','Sild. EUR','BNO kWh','BNO EUR','Viso kWh','Viso EUR']];
+  var totViso = 0;
+
+  rows.forEach(function(row) {
+    var hkwh  = row.hotKwh    !== null ? row.hotKwh    : 0;
+    var shkwh = row.heatDirect !== null ? row.heatDirect : 0;
+    var bkwh  = bnoPerApt;
+    var visoKwh = hkwh + shkwh + bkwh;
+    var visoEur = visoKwh * price;
+    totViso += visoEur;
+
+    var aptLbl = row.apt.apt_number || row.apt.id;
+    var tenant = row.apt.tenant_name || '';
+
+    html += '<tr>' +
+      '<td>' + esc(String(aptLbl)) + '</td>' +
+      '<td>' + esc(tenant) + '</td>' +
+      '<td>' + (row.hotWaterM3 !== null ? row.hotWaterM3.toFixed(3) : '—') + '</td>' +
+      '<td>' + hkwh.toFixed(2) + '</td>' +
+      '<td>' + (hkwh * price).toFixed(2) + '</td>' +
+      '<td>' + shkwh.toFixed(2) + '</td>' +
+      '<td>' + (shkwh * price).toFixed(2) + '</td>' +
+      '<td>' + bkwh.toFixed(2) + '</td>' +
+      '<td>' + (bkwh * price).toFixed(2) + '</td>' +
+      '<td>' + visoKwh.toFixed(2) + '</td>' +
+      '<td>' + visoEur.toFixed(2) + '</td>' +
+      '</tr>';
+
+    csvData.push([
+      String(aptLbl), tenant,
+      row.hotWaterM3 !== null ? row.hotWaterM3.toFixed(3) : '',
+      hkwh.toFixed(2), (hkwh * price).toFixed(2),
+      shkwh.toFixed(2), (shkwh * price).toFixed(2),
+      bkwh.toFixed(2), (bkwh * price).toFixed(2),
+      visoKwh.toFixed(2), visoEur.toFixed(2)
+    ]);
+  });
+
+  html += '</tbody><tfoot><tr><td colspan="10">Viso</td><td>' + totViso.toFixed(2) + ' EUR</td></tr></tfoot>' +
+    '</table></div>';
+
+  html += '<button class="gen-btn" style="margin:12px 14px;" onclick="exportCalcCsv()">&#x1F4BE; CSV</button>';
+
+  out.innerHTML = html;
+  out._csvData  = csvData;
+  out._month    = month;
+}
+
+function exportCalcCsv() {
+  var out = document.getElementById('calc-output');
+  if (!out._csvData) return;
+  exportCsv(out._csvData, 'elektra_' + out._month);
 }
 
 /* ── CSV EXPORT ───────────────────────────────────── */

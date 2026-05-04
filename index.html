@@ -268,12 +268,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div class="rc-row">
         <div class="rc-fld">
-          <label>BNO koeficientas (%)</label>
-          <input type="number" id="calc-bno" value="30" inputmode="decimal" step="any" />
-        </div>
-        <div class="rc-fld">
           <label>kWh/m³ karštam vandeniui</label>
-          <input type="number" id="calc-kwh-m3" value="20" inputmode="decimal" step="any" />
+          <input type="number" id="calc-kwh-m3" value="15" inputmode="decimal" step="any" />
         </div>
       </div>
       <button class="gen-btn" id="btn-calc">&#x1F504; Krauti rodmenis</button>
@@ -1345,7 +1341,7 @@ function showCalcHeatTable(out) {
   html += '<div id="ai-status" style="font-size:.78rem;color:var(--muted);padding-bottom:6px;min-height:18px;"></div>';
 
   html += '<div class="rep-scroll"><table class="rep-table"><thead><tr>' +
-    '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>Šildymas kWh</th>' +
+    '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>Šildymas kWh<br><small style="font-weight:400;color:var(--muted)">(su 0,7 koef.)</small></th>' +
     '</tr></thead><tbody>';
 
   calcApts.forEach(function(apt) {
@@ -1419,9 +1415,11 @@ function parseHeatScreenshot(file, apiKey) {
             },
             {
               type: 'text',
-              text: 'This is a heating meter screenshot. Each apartment has multiple rooms (Svetainė, Miegamasis, San mazgas etc.) each with a "Sunaudota energijos" kWh value. ' +
-                'Sum all rooms per apartment. Return ONLY a JSON array, no explanation: ' +
-                '[{"apt":1,"kwh":1234.56},{"apt":2,"kwh":789.01},...] ' +
+              text: 'This is a Lithuanian heating meter Excel screenshot. ' +
+                'Find the column "Suvartota kWh" or "Sunaudota energijos" — this is the already-calculated heating energy per apartment (with 0.7 coefficient already applied). ' +
+                'If you see per-room values (Svetainė, Miegamasis, San Mazgas etc.), sum them per apartment. ' +
+                'Return ONLY a JSON array, no explanation: ' +
+                '[{"apt":1,"kwh":31.50},{"apt":2,"kwh":65.80},...] ' +
                 'Apartment numbers in this address: ' + aptNums.join(', ') + '. ' +
                 'Use those exact numbers as "apt" values.'
             }
@@ -1458,13 +1456,12 @@ function parseHeatScreenshot(file, apiKey) {
 function runCalc() {
   var totalKwh = parseFloat(document.getElementById('calc-total-kwh').value);
   var price    = parseFloat(document.getElementById('calc-price').value);
-  var bnoCoeff = parseFloat(document.getElementById('calc-bno').value) / 100;
   var kwhPerM3 = parseFloat(document.getElementById('calc-kwh-m3').value);
   var month    = document.getElementById('calc-month').value;
   var resDiv   = document.getElementById('calc-results');
 
   if (!resDiv) return;
-  if (isNaN(totalKwh) || isNaN(price) || isNaN(bnoCoeff) || isNaN(kwhPerM3)) {
+  if (isNaN(totalKwh) || isNaN(price) || isNaN(kwhPerM3)) {
     toast('Įveskite visus skaičius konfigūracijoje', 'err'); return;
   }
 
@@ -1480,10 +1477,10 @@ function runCalc() {
       .catch(function(e) { toast('Nepavyko išsaugoti: ' + e.message, 'err'); });
   }
 
-  showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month);
+  showCalcResults(resDiv, totalKwh, price, kwhPerM3, month);
 }
 
-function showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month) {
+function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
   var heatMap = {};
   document.querySelectorAll('.heat-inp').forEach(function(inp) {
     var val = parseFloat(inp.value);
@@ -1497,12 +1494,11 @@ function showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month) {
   calcApts.forEach(function(apt) {
     var kvM3       = calcHotWater[apt.id] != null ? calcHotWater[apt.id] : 0;
     var kvKwh      = kvM3 * kwhPerM3;
-    var heatKwh    = heatMap[String(apt.id)] != null ? heatMap[String(apt.id)] : 0;
-    var heatDirect = heatKwh * (1 - bnoCoeff);
+    var heatKwh = heatMap[String(apt.id)] != null ? heatMap[String(apt.id)] : 0;
 
-    rows.push({ apt: apt, kvM3: kvM3, kvKwh: kvKwh, heatDirect: heatDirect });
+    rows.push({ apt: apt, kvM3: kvM3, kvKwh: kvKwh, heatKwh: heatKwh });
     sumKvKwh      += kvKwh;
-    sumHeatDirect += heatDirect;
+    sumHeatDirect += heatKwh;
   });
 
   var bnoTotal = totalKwh - sumKvKwh - sumHeatDirect;
@@ -1515,7 +1511,7 @@ function showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month) {
   var html = warnHtml + '<div class="calc-summary">' +
     '<span>Bendra elektra:</span><span><b>' + totalKwh.toFixed(2) + ' kWh</b></span>' +
     '<span>K.V. iš viso:</span><span>' + sumKvKwh.toFixed(2) + ' kWh</span>' +
-    '<span>Šildymas (70%) iš viso:</span><span>' + sumHeatDirect.toFixed(2) + ' kWh</span>' +
+    '<span>Šildymas iš viso:</span><span>' + sumHeatDirect.toFixed(2) + ' kWh</span>' +
     '<span>BNO patalpų šildymas:</span><span' + (bnoNeg ? ' style="color:#dc2626;font-weight:700"' : '') + '>' + bnoTotal.toFixed(2) + ' kWh</span>' +
     '<span>Kaina:</span><span>' + price.toFixed(4) + ' EUR/kWh</span>' +
     '</div>';
@@ -1531,7 +1527,7 @@ function showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month) {
   var totAptEur = 0;
 
   rows.forEach(function(row) {
-    var aptEur = (row.kvKwh + row.heatDirect) * price;
+    var aptEur = (row.kvKwh + row.heatKwh) * price;
     totAptEur += aptEur;
     var aptLbl = row.apt.apt_label || row.apt.number || row.apt.id;
     var tenant = row.apt.tenant_name || '';
@@ -1542,15 +1538,15 @@ function showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month) {
       '<td>' + row.kvM3.toFixed(3) + '</td>' +
       '<td>' + row.kvKwh.toFixed(2) + '</td>' +
       '<td>' + (row.kvKwh * price).toFixed(2) + '</td>' +
-      '<td>' + row.heatDirect.toFixed(2) + '</td>' +
-      '<td>' + (row.heatDirect * price).toFixed(2) + '</td>' +
+      '<td>' + row.heatKwh.toFixed(2) + '</td>' +
+      '<td>' + (row.heatKwh * price).toFixed(2) + '</td>' +
       '<td>' + aptEur.toFixed(2) + '</td>' +
       '</tr>';
 
     csvData.push([
       String(aptLbl), tenant,
       row.kvM3.toFixed(3), row.kvKwh.toFixed(2), (row.kvKwh * price).toFixed(2),
-      row.heatDirect.toFixed(2), (row.heatDirect * price).toFixed(2),
+      row.heatKwh.toFixed(2), (row.heatKwh * price).toFixed(2),
       aptEur.toFixed(2)
     ]);
   });

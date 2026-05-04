@@ -277,6 +277,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <button class="gen-btn" id="btn-calc">&#x1F504; Krauti rodmenis</button>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <div class="rc-fld">
+          <label>&#x1F511; Anthropic API raktas (šildymui iš foto)</label>
+          <input type="password" id="calc-ai-key" placeholder="sk-ant-..." style="font-size:.85rem;" />
+        </div>
+      </div>
     </div>
     <div id="calc-output"></div>
   </div>
@@ -1108,6 +1114,8 @@ function switchTab(tab) {
     if (!document.getElementById('calc-month').value) {
       document.getElementById('calc-month').value = CUR_PERIOD;
     }
+    var saved = localStorage.getItem('aiKey');
+    if (saved) { var kf = document.getElementById('calc-ai-key'); if (kf && !kf.value) kf.value = saved; }
   }
 }
 
@@ -1312,8 +1320,21 @@ function loadCalcData() {
 }
 
 function showCalcHeatTable(out) {
-  var html = '<div class="rep-scroll" style="margin-top:8px;"><table class="rep-table"><thead><tr>' +
-    '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>&#x1F321;&#xFE0F; Šildymas kWh</th>' +
+  /* restore saved API key */
+  var savedKey = localStorage.getItem('aiKey') || '';
+  var keyInp   = document.getElementById('calc-ai-key');
+  if (keyInp && !keyInp.value && savedKey) keyInp.value = savedKey;
+
+  var html = '<div style="padding:8px 0 4px;display:flex;gap:8px;align-items:center;">' +
+    '<label style="font-size:.75rem;font-weight:700;color:var(--muted);flex:1;">&#x1F321;&#xFE0F; Įveskite šildymo kWh arba įkelkite screenshot:</label>' +
+    '<label class="gen-btn" style="margin:0;cursor:pointer;font-size:.82rem;padding:9px 12px;" id="lbl-ai-upload">&#x1F4F7; Foto' +
+    '<input type="file" id="calc-ai-img" accept="image/*" style="display:none;" /></label>' +
+    '</div>';
+
+  html += '<div id="ai-status" style="font-size:.78rem;color:var(--muted);padding-bottom:6px;min-height:18px;"></div>';
+
+  html += '<div class="rep-scroll"><table class="rep-table"><thead><tr>' +
+    '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>Šildymas kWh</th>' +
     '</tr></thead><tbody>';
 
   calcApts.forEach(function(apt) {
@@ -1331,7 +1352,82 @@ function showCalcHeatTable(out) {
   html += '<button class="gen-btn" style="margin:10px 0 4px;" id="btn-calc-run">&#x26A1; Skaičiuoti</button>';
   html += '<div id="calc-results"></div>';
   out.innerHTML = html;
+
   document.getElementById('btn-calc-run').addEventListener('click', runCalc);
+  document.getElementById('calc-ai-img').addEventListener('change', function() {
+    var file = this.files[0];
+    if (!file) return;
+    var keyEl  = document.getElementById('calc-ai-key');
+    var apiKey = (keyEl && keyEl.value.trim()) || localStorage.getItem('aiKey') || '';
+    if (!apiKey) { toast('Įveskite Anthropic API raktą', 'err'); return; }
+    localStorage.setItem('aiKey', apiKey);
+    parseHeatScreenshot(file, apiKey);
+  });
+}
+
+function parseHeatScreenshot(file, apiKey) {
+  var status = document.getElementById('ai-status');
+  status.textContent = '⏳ Analizuojama…';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64    = e.target.result.split(',')[1];
+    var mtype  = file.type || 'image/jpeg';
+    var aptNums = calcApts.map(function(a) { return a.apt_label || a.number || a.id; });
+
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-7',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mtype, data: b64 }
+            },
+            {
+              type: 'text',
+              text: 'This is a heating meter screenshot. Each apartment has multiple rooms (Svetainė, Miegamasis, San mazgas etc.) each with a "Sunaudota energijos" kWh value. ' +
+                'Sum all rooms per apartment. Return ONLY a JSON array, no explanation: ' +
+                '[{"apt":1,"kwh":1234.56},{"apt":2,"kwh":789.01},...] ' +
+                'Apartment numbers in this address: ' + aptNums.join(', ') + '. ' +
+                'Use those exact numbers as "apt" values.'
+            }
+          ]
+        }]
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { status.textContent = '⚠ ' + data.error.message; return; }
+      var text = data.content && data.content[0] && data.content[0].text || '';
+      var match = text.match(/\[[\s\S]*\]/);
+      if (!match) { status.textContent = '⚠ Nepavyko perskaityti atsakymo'; return; }
+      var items = JSON.parse(match[0]);
+      var filled = 0;
+      items.forEach(function(item) {
+        var inp = document.querySelector('.heat-inp[data-apt]');
+        /* match by apt label/number */
+        calcApts.forEach(function(apt) {
+          var lbl = String(apt.apt_label || apt.number || apt.id);
+          if (String(item.apt) === lbl) {
+            var el = document.querySelector('.heat-inp[data-apt="' + apt.id + '"]');
+            if (el) { el.value = Number(item.kwh).toFixed(2); filled++; }
+          }
+        });
+      });
+      status.textContent = '✓ Užpildyta ' + filled + ' iš ' + calcApts.length + ' butų';
+    })
+    .catch(function(e) { status.textContent = '⚠ ' + e.message; });
+  };
+  reader.readAsDataURL(file);
 }
 
 function runCalc() {
@@ -1400,7 +1496,7 @@ function showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month) {
     var visoKwh = row.kvKwh + row.heatDirect + bnoPerApt;
     var visoEur = visoKwh * price;
     totEur += visoEur;
-    var aptLbl = row.apt.apt_number || row.apt.id;
+    var aptLbl = row.apt.apt_label || row.apt.number || row.apt.id;
     var tenant = row.apt.tenant_name || '';
 
     html += '<tr>' +

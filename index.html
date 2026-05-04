@@ -1273,7 +1273,7 @@ function loadCalcData() {
   calcApts = [];
   calcHotWater = {};
 
-  sbGet('apartments?address_id=eq.' + addrId + '&order=apt_number.asc')
+  sbGet('apartments?select=id,number,tenant_name,apt_label&address_id=eq.' + addrId + '&order=number')
     .then(function(apts) {
       if (!apts.length) { out.innerHTML = '<div class="loading">Nėra butų</div>'; return; }
       calcApts = apts;
@@ -1319,7 +1319,7 @@ function showCalcHeatTable(out) {
   calcApts.forEach(function(apt) {
     var m3 = calcHotWater[apt.id];
     html += '<tr>' +
-      '<td><b>' + esc(String(apt.apt_number || apt.id)) + '</b></td>' +
+      '<td><b>' + esc(String(apt.apt_label || apt.number || apt.id)) + '</b></td>' +
       '<td>' + esc(apt.tenant_name || '') + '</td>' +
       '<td>' + (m3 != null ? m3.toFixed(3) : '<span style="color:var(--muted)">—</span>') + '</td>' +
       '<td><input type="number" class="heat-inp" data-apt="' + apt.id + '" inputmode="decimal" step="any"' +

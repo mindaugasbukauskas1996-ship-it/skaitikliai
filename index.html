@@ -1302,7 +1302,7 @@ function loadCalcData() {
             return;
           }
 
-          sbGet('meter_readings?meter_id=in.(' + hwIds.join(',') + ')&period=eq.' + month)
+          sbGet('readings?meter_id=in.(' + hwIds.join(',') + ')&period=eq.' + month)
             .then(function(readings) {
               readings.forEach(function(r) {
                 var aptId = hwApt[r.meter_id];

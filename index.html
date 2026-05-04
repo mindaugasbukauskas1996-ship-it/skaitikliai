@@ -58,6 +58,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ── PERIOD BAR ── */
 .period-bar{background:#fff;border-bottom:1px solid var(--border);padding:9px 12px;display:flex;align-items:center;gap:8px;position:sticky;top:62px;z-index:190;}
 .period-lbl{font-size:.9rem;font-weight:700;flex:1;}
+.period-inp{flex:1;border:1.5px solid var(--inp-b);border-radius:8px;padding:8px 10px;font-size:.9rem;font-weight:700;background:var(--inp);outline:none;color:var(--text);font-family:inherit;cursor:pointer;}
+.period-inp:focus{border-color:var(--blue);}
 .back-btn{padding:9px 13px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;min-height:44px;font-family:inherit;}
 
 /* ── STATS ── */
@@ -266,15 +268,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div class="rc-row">
         <div class="rc-fld">
-          <label>BNO koeficientas (%)</label>
-          <input type="number" id="calc-bno" value="30" inputmode="decimal" step="any" />
-        </div>
-        <div class="rc-fld">
           <label>kWh/m³ karštam vandeniui</label>
-          <input type="number" id="calc-kwh-m3" value="20" inputmode="decimal" step="any" />
+          <input type="number" id="calc-kwh-m3" value="15" inputmode="decimal" step="any" />
         </div>
       </div>
-      <button class="gen-btn" id="btn-calc">&#x26A1; Skaičiuoti</button>
+      <button class="gen-btn" id="btn-calc">&#x1F504; Krauti rodmenis</button>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <div class="rc-fld">
+          <label>&#x1F511; Anthropic API raktas (šildymui iš foto)</label>
+          <input type="password" id="calc-ai-key" placeholder="sk-ant-..." style="font-size:.85rem;" />
+        </div>
+      </div>
     </div>
     <div id="calc-output"></div>
   </div>
@@ -322,6 +326,7 @@ var meterList      = [];
 var prevR          = {};     /* meter_id -> value_to (most recent any period) */
 var curR           = {};     /* meter_id -> reading row for CUR_PERIOD */
 var curFilter      = 'all';
+var activePeriod   = CUR_PERIOD;  /* can be changed by admin */
 
 /* ── SUPABASE HELPERS ─────────────────────────────── */
 function sbHead() {
@@ -352,6 +357,17 @@ function sbPatch(path, body) {
   h['Content-Type'] = 'application/json';
   h['Prefer'] = 'return=minimal';
   return fetch(SB_URL + '/rest/v1/' + path, { method: 'PATCH', headers: h, body: JSON.stringify(body) })
+    .then(function(r) {
+      if (!r.ok) { return r.text().then(function(t) { throw new Error(t); }); }
+      return null;
+    });
+}
+
+function sbUpsert(path, body) {
+  var h = sbHead();
+  h['Content-Type'] = 'application/json';
+  h['Prefer'] = 'resolution=merge-duplicates,return=minimal';
+  return fetch(SB_URL + '/rest/v1/' + path, { method: 'POST', headers: h, body: JSON.stringify(body) })
     .then(function(r) {
       if (!r.ok) { return r.text().then(function(t) { throw new Error(t); }); }
       return null;
@@ -400,7 +416,7 @@ document.getElementById('tab-home').addEventListener('click', function() { switc
 document.getElementById('tab-report').addEventListener('click', function() { switchTab('report'); });
 document.getElementById('tab-calc').addEventListener('click', function() { switchTab('calc'); });
 document.getElementById('btn-genrep').addEventListener('click', generateReport);
-document.getElementById('btn-calc').addEventListener('click', runCalc);
+document.getElementById('btn-calc').addEventListener('click', loadCalcData);
 
 if (userRole) {
   goToAddresses();
@@ -487,26 +503,70 @@ function renderAddresses() {
 }
 
 /* ── OPEN ADDRESS → APARTMENTS ───────────────────── */
+function periodToLabel(p) {
+  var parts = p.split('-');
+  var m = parseInt(parts[1], 10);
+  return MEN[m] + ' ' + parts[0];
+}
+
 function openAddress(addr) {
-  selAddr    = addr;
-  aptList    = [];
-  meterList  = [];
-  prevR      = {};
-  curR       = {};
-  curFilter  = 'all';
+  selAddr       = addr;
+  aptList       = [];
+  meterList     = [];
+  prevR         = {};
+  curR          = {};
+  curFilter     = 'all';
+  activePeriod  = CUR_PERIOD;
 
   showScreen('screen-apartments');
-  setHdr(addr.name, CUR_LABEL, true, true);
-  document.getElementById('apts-period-lbl').textContent = CUR_LABEL;
+  setHdr(addr.name, periodToLabel(activePeriod), true, true);
   document.getElementById('prog-fill').style.width = '0%';
   document.getElementById('prog-lbl').textContent  = '';
   document.getElementById('apt-list').innerHTML    =
     '<div class="loading"><div class="spinner"></div>Kraunama...</div>';
 
+  /* period bar: admin gets editable month input, tech gets plain label */
+  var pLbl = document.getElementById('apts-period-lbl');
+  if (userRole === 'admin') {
+    var inp = document.createElement('input');
+    inp.type      = 'month';
+    inp.id        = 'period-picker';
+    inp.className = 'period-inp';
+    inp.value     = activePeriod;
+    inp.addEventListener('change', function() {
+      if (this.value) changeActivePeriod(this.value);
+    });
+    pLbl.parentNode.replaceChild(inp, pLbl);
+  } else {
+    /* ensure it's a div (may have been replaced by input on prev visit) */
+    if (pLbl.tagName !== 'DIV') {
+      var div = document.createElement('div');
+      div.className = 'period-lbl';
+      div.id        = 'apts-period-lbl';
+      pLbl.parentNode.replaceChild(div, pLbl);
+      pLbl = div;
+    }
+    pLbl.textContent = periodToLabel(activePeriod);
+  }
+
   resetFilterBtns();
   if (userRole === 'admin') { setActiveTab('tab-home'); }
 
   loadApts(addr.id);
+}
+
+function changeActivePeriod(period) {
+  activePeriod = period;
+  setHdr(selAddr.name, periodToLabel(activePeriod), true, true);
+  document.getElementById('prog-fill').style.width = '0%';
+  document.getElementById('prog-lbl').textContent  = '';
+  document.getElementById('apt-list').innerHTML    =
+    '<div class="loading"><div class="spinner"></div>Kraunama...</div>';
+  prevR = {};
+  curR  = {};
+  resetFilterBtns();
+  curFilter = 'all';
+  loadApts(selAddr.id);
 }
 
 function goBack() {
@@ -537,9 +597,10 @@ function loadApts(addrId) {
         return Promise.reject('__empty__');
       }
       var mIds = ms.map(function(m) { return m.id; }).join(',');
-      /* most recent reading per meter across ALL periods */
+      /* most recent reading BEFORE the active period (= NUO value) */
       return sbGet(
-        'readings?select=meter_id,value_to,period&meter_id=in.(' + mIds + ')&order=period.desc'
+        'readings?select=meter_id,value_to,period&meter_id=in.(' + mIds + ')' +
+        '&period=lt.' + activePeriod + '&order=period.desc'
       );
     })
     .then(function(allPrev) {
@@ -548,10 +609,10 @@ function loadApts(addrId) {
         if (prevR[r.meter_id] === undefined) prevR[r.meter_id] = r.value_to;
       });
       var mIds = meterList.map(function(m) { return m.id; }).join(',');
-      /* current period readings */
+      /* readings for the active period */
       return sbGet(
         'readings?select=id,meter_id,value_from,value_to,note' +
-        '&meter_id=in.(' + mIds + ')&period=eq.' + CUR_PERIOD
+        '&meter_id=in.(' + mIds + ')&period=eq.' + activePeriod
       );
     })
     .then(function(curr) {
@@ -904,7 +965,7 @@ function saveApt(aptId) {
     var iki = iEl ? parseFloat(iEl.value) : NaN;
     if (isNaN(iki)) { toast('Įveskite visus parodymus!', 'er'); ok = false; return; }
     if (iki < nuo)  { toast('IKI negali būti mažesnis už NUO!', 'er'); ok = false; return; }
-    rows.push({ meter_id: m.id, period: CUR_PERIOD, value_from: nuo, value_to: iki, note: note });
+    rows.push({ meter_id: m.id, period: activePeriod, value_from: nuo, value_to: iki, note: note });
   });
   if (!ok) return;
 
@@ -1049,7 +1110,9 @@ function switchTab(tab) {
     setHdr('Elektros skaičiuoklė', 'Karališkių elektra', true, false);
     var cSel = document.getElementById('calc-addr');
     cSel.innerHTML = '';
-    addrList.forEach(function(a) {
+    addrList.filter(function(a) {
+      return a.name && a.name.toLowerCase().indexOf('karališ') !== -1;
+    }).forEach(function(a) {
       var opt = document.createElement('option');
       opt.value       = a.id;
       opt.textContent = a.name;
@@ -1058,6 +1121,8 @@ function switchTab(tab) {
     if (!document.getElementById('calc-month').value) {
       document.getElementById('calc-month').value = CUR_PERIOD;
     }
+    var saved = localStorage.getItem('aiKey');
+    if (saved) { var kf = document.getElementById('calc-ai-key'); if (kf && !kf.value) kf.value = saved; }
   }
 }
 
@@ -1209,33 +1274,50 @@ function generateReport() {
 }
 
 /* ── ELECTRICITY CALCULATOR ───────────────────────── */
-function runCalc() {
-  var addrId     = document.getElementById('calc-addr').value;
-  var month      = document.getElementById('calc-month').value;
-  var totalKwh   = parseFloat(document.getElementById('calc-total-kwh').value);
-  var price      = parseFloat(document.getElementById('calc-price').value);
-  var bnoCoeff   = parseFloat(document.getElementById('calc-bno').value) / 100;
-  var kwhPerM3   = parseFloat(document.getElementById('calc-kwh-m3').value);
-  var out        = document.getElementById('calc-output');
+var calcApts     = [];
+var calcHotWater = {}; // apt_id -> m3 consumed
+
+function loadCalcData() {
+  var addrId = document.getElementById('calc-addr').value;
+  var month  = document.getElementById('calc-month').value;
+  var out    = document.getElementById('calc-output');
 
   if (!addrId || !month) { toast('Pasirinkite adresą ir mėnesį', 'err'); return; }
-  if (isNaN(totalKwh) || isNaN(price) || isNaN(bnoCoeff) || isNaN(kwhPerM3)) {
-    toast('Įveskite visus skaičius', 'err'); return;
-  }
 
   out.innerHTML = '<div class="loading">Kraunama…</div>';
+  calcApts = [];
+  calcHotWater = {};
 
-  var addr = addrList.filter(function(a) { return String(a.id) === String(addrId); })[0];
-
-  sbGet('apartments?address_id=eq.' + addrId + '&order=apt_number.asc')
+  sbGet('apartments?select=id,number,tenant_name,apt_label&address_id=eq.' + addrId + '&order=number')
     .then(function(apts) {
       if (!apts.length) { out.innerHTML = '<div class="loading">Nėra butų</div>'; return; }
+      calcApts = apts;
       var aptIds = apts.map(function(a) { return a.id; }).join(',');
       sbGet('meters?select=id,apartment_id,meter_types(code,label,unit)&apartment_id=in.(' + aptIds + ')')
         .then(function(meters) {
-          sbGet('meter_readings?meter_id=in.(' + meters.map(function(m){return m.id;}).join(',') + ')&period=eq.' + month)
+          var hwIds = [];
+          var hwApt = {};
+          meters.forEach(function(m) {
+            if (m.meter_types && (m.meter_types.code === 'hot_water' || m.meter_types.code === 'water_m3')) {
+              hwIds.push(m.id);
+              hwApt[m.id] = m.apartment_id;
+            }
+          });
+
+          if (!hwIds.length) {
+            showCalcHeatTable(out);
+            return;
+          }
+
+          sbGet('readings?meter_id=in.(' + hwIds.join(',') + ')&period=eq.' + month)
             .then(function(readings) {
-              showCalcResults(apts, meters, readings, totalKwh, price, bnoCoeff, kwhPerM3, month, addr, out);
+              readings.forEach(function(r) {
+                var aptId = hwApt[r.meter_id];
+                if (aptId !== undefined && r.value_from != null && r.value_to != null) {
+                  calcHotWater[aptId] = (calcHotWater[aptId] || 0) + (Number(r.value_to) - Number(r.value_from));
+                }
+              });
+              showCalcHeatTable(out);
             })
             .catch(function(e) { out.innerHTML = '<div class="loading">⚠ ' + esc(e.message) + '</div>'; });
         })
@@ -1244,66 +1326,193 @@ function runCalc() {
     .catch(function(e) { out.innerHTML = '<div class="loading">⚠ ' + esc(e.message) + '</div>'; });
 }
 
-function showCalcResults(apts, meters, readings, totalKwh, price, bnoCoeff, kwhPerM3, month, addr, out) {
-  var readMap = {};
-  readings.forEach(function(r) { readMap[r.meter_id] = r; });
+function showCalcHeatTable(out) {
+  /* restore saved API key */
+  var savedKey = localStorage.getItem('aiKey') || '';
+  var keyInp   = document.getElementById('calc-ai-key');
+  if (keyInp && !keyInp.value && savedKey) keyInp.value = savedKey;
 
-  var meterMap = {};
-  meters.forEach(function(m) { meterMap[m.id] = m; });
+  var html = '<div style="padding:8px 0 4px;display:flex;gap:8px;align-items:center;">' +
+    '<label style="font-size:.75rem;font-weight:700;color:var(--muted);flex:1;">&#x1F321;&#xFE0F; Įveskite šildymo kWh arba įkelkite screenshot:</label>' +
+    '<label class="gen-btn" style="margin:0;cursor:pointer;font-size:.82rem;padding:9px 12px;" id="lbl-ai-upload">&#x1F4F7; Foto' +
+    '<input type="file" id="calc-ai-img" accept="image/*" style="display:none;" /></label>' +
+    '</div>';
 
-  var aptMeters = {};
-  meters.forEach(function(m) {
-    if (!aptMeters[m.apartment_id]) aptMeters[m.apartment_id] = [];
-    aptMeters[m.apartment_id].push(m);
+  html += '<div id="ai-status" style="font-size:.78rem;color:var(--muted);padding-bottom:6px;min-height:18px;"></div>';
+
+  html += '<div class="rep-scroll"><table class="rep-table"><thead><tr>' +
+    '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>Šildymas kWh<br><small style="font-weight:400;color:var(--muted)">(su 0,7 koef.)</small></th>' +
+    '</tr></thead><tbody>';
+
+  calcApts.forEach(function(apt) {
+    var m3 = calcHotWater[apt.id];
+    html += '<tr>' +
+      '<td><b>' + esc(String(apt.apt_label || apt.number || apt.id)) + '</b></td>' +
+      '<td>' + esc(apt.tenant_name || '') + '</td>' +
+      '<td>' + (m3 != null ? m3.toFixed(3) : '<span style="color:var(--muted)">—</span>') + '</td>' +
+      '<td><input type="number" class="heat-inp" data-apt="' + apt.id + '" inputmode="decimal" step="any"' +
+      ' style="width:100px;padding:7px 8px;border:1.5px solid var(--inp-b);border-radius:7px;font-size:1rem;background:var(--inp);" /></td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  html += '<button class="gen-btn" style="margin:10px 0 4px;" id="btn-calc-run">&#x26A1; Skaičiuoti</button>';
+  html += '<div id="calc-results"></div>';
+  out.innerHTML = html;
+
+  /* load saved heating entries for this period */
+  var month   = document.getElementById('calc-month').value;
+  var aptIds  = calcApts.map(function(a) { return a.id; }).join(',');
+  var status  = document.getElementById('ai-status');
+  sbGet('heating_entries?apartment_id=in.(' + aptIds + ')&period=eq.' + month)
+    .then(function(entries) {
+      entries.forEach(function(e) {
+        var el = document.querySelector('.heat-inp[data-apt="' + e.apartment_id + '"]');
+        if (el) el.value = e.kwh_total;
+      });
+      if (entries.length) status.textContent = '✓ Įkelti išsaugoti ' + entries.length + ' butų rodmenys';
+    })
+    .catch(function() {}); /* tyliai ignoruojam jei lentelės dar nėra */
+
+  document.getElementById('btn-calc-run').addEventListener('click', runCalc);
+  document.getElementById('calc-ai-img').addEventListener('change', function() {
+    var file = this.files[0];
+    if (!file) return;
+    var keyEl  = document.getElementById('calc-ai-key');
+    var apiKey = (keyEl && keyEl.value.trim()) || localStorage.getItem('aiKey') || '';
+    if (!apiKey) { toast('Įveskite Anthropic API raktą', 'err'); return; }
+    localStorage.setItem('aiKey', apiKey);
+    parseHeatScreenshot(file, apiKey);
+  });
+}
+
+function parseHeatScreenshot(file, apiKey) {
+  var status = document.getElementById('ai-status');
+  status.textContent = '⏳ Analizuojama…';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64    = e.target.result.split(',')[1];
+    var mtype  = file.type || 'image/jpeg';
+    var aptNums = calcApts.map(function(a) { return a.apt_label || a.number || a.id; });
+
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-7',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mtype, data: b64 }
+            },
+            {
+              type: 'text',
+              text: 'This is a Lithuanian heating meter Excel screenshot. ' +
+                'Find the column "Suvartota kWh" or "Sunaudota energijos" — this is the already-calculated heating energy per apartment (with 0.7 coefficient already applied). ' +
+                'If you see per-room values (Svetainė, Miegamasis, San Mazgas etc.), sum them per apartment. ' +
+                'Return ONLY a JSON array, no explanation: ' +
+                '[{"apt":1,"kwh":31.50},{"apt":2,"kwh":65.80},...] ' +
+                'Apartment numbers in this address: ' + aptNums.join(', ') + '. ' +
+                'Use those exact numbers as "apt" values.'
+            }
+          ]
+        }]
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { status.textContent = '⚠ ' + data.error.message; return; }
+      var text = data.content && data.content[0] && data.content[0].text || '';
+      var match = text.match(/\[[\s\S]*\]/);
+      if (!match) { status.textContent = '⚠ Nepavyko perskaityti atsakymo'; return; }
+      var items = JSON.parse(match[0]);
+      var filled = 0;
+      items.forEach(function(item) {
+        var inp = document.querySelector('.heat-inp[data-apt]');
+        /* match by apt label/number */
+        calcApts.forEach(function(apt) {
+          var lbl = String(apt.apt_label || apt.number || apt.id);
+          if (String(item.apt) === lbl) {
+            var el = document.querySelector('.heat-inp[data-apt="' + apt.id + '"]');
+            if (el) { el.value = Number(item.kwh).toFixed(2); filled++; }
+          }
+        });
+      });
+      status.textContent = '✓ Užpildyta ' + filled + ' iš ' + calcApts.length + ' butų';
+    })
+    .catch(function(e) { status.textContent = '⚠ ' + e.message; });
+  };
+  reader.readAsDataURL(file);
+}
+
+function runCalc() {
+  var totalKwh = parseFloat(document.getElementById('calc-total-kwh').value);
+  var price    = parseFloat(document.getElementById('calc-price').value);
+  var kwhPerM3 = parseFloat(document.getElementById('calc-kwh-m3').value);
+  var month    = document.getElementById('calc-month').value;
+  var resDiv   = document.getElementById('calc-results');
+
+  if (!resDiv) return;
+  if (isNaN(totalKwh) || isNaN(price) || isNaN(kwhPerM3)) {
+    toast('Įveskite visus skaičius konfigūracijoje', 'err'); return;
+  }
+
+  /* save heating entries to DB */
+  var toSave = [];
+  document.querySelectorAll('.heat-inp').forEach(function(inp) {
+    var val = parseFloat(inp.value);
+    if (!isNaN(val)) toSave.push({ apartment_id: Number(inp.getAttribute('data-apt')), period: month, kwh_total: val });
+  });
+  if (toSave.length) {
+    sbUpsert('heating_entries?on_conflict=apartment_id,period', toSave)
+      .then(function() { toast('Šildymo rodmenys išsaugoti', 'ok'); })
+      .catch(function(e) { toast('Nepavyko išsaugoti: ' + e.message, 'err'); });
+  }
+
+  showCalcResults(resDiv, totalKwh, price, kwhPerM3, month);
+}
+
+function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
+  var heatMap = {};
+  document.querySelectorAll('.heat-inp').forEach(function(inp) {
+    var val = parseFloat(inp.value);
+    if (!isNaN(val)) heatMap[inp.getAttribute('data-apt')] = val;
   });
 
   var rows = [];
-  var sumHotKwh  = 0;
-  var sumHeatKwh = 0;
+  var sumKvKwh      = 0;
+  var sumHeatDirect = 0;
 
-  apts.forEach(function(apt) {
-    var ms      = aptMeters[apt.id] || [];
-    var hotWaterM3  = null;
-    var heatKwhRaw  = null;
+  calcApts.forEach(function(apt) {
+    var kvM3       = calcHotWater[apt.id] != null ? calcHotWater[apt.id] : 0;
+    var kvKwh      = kvM3 * kwhPerM3;
+    var heatKwh = heatMap[String(apt.id)] != null ? heatMap[String(apt.id)] : 0;
 
-    ms.forEach(function(m) {
-      var code = m.meter_types ? m.meter_types.code : '';
-      var r    = readMap[m.id];
-      var cons = r && r.value_from != null && r.value_to != null ? (r.value_to - r.value_from) : null;
-      if (code === 'hot_water' || code === 'water_m3') {
-        if (cons !== null) hotWaterM3 = (hotWaterM3 || 0) + cons;
-      }
-      if (code === 'heat_mwh') {
-        if (cons !== null) heatKwhRaw = (heatKwhRaw || 0) + cons;
-      }
-    });
-
-    var hotKwh    = hotWaterM3  !== null ? hotWaterM3  * kwhPerM3 : null;
-    var heatDirect = heatKwhRaw !== null ? heatKwhRaw * (1 - bnoCoeff) : null;
-
-    rows.push({
-      apt:        apt,
-      hotWaterM3: hotWaterM3,
-      hotKwh:     hotKwh,
-      heatKwhRaw: heatKwhRaw,
-      heatDirect: heatDirect
-    });
-
-    if (hotKwh    !== null) sumHotKwh  += hotKwh;
-    if (heatKwhRaw !== null) sumHeatKwh += heatKwhRaw;
+    rows.push({ apt: apt, kvM3: kvM3, kvKwh: kvKwh, heatKwh: heatKwh });
+    sumKvKwh      += kvKwh;
+    sumHeatDirect += heatKwh;
   });
 
-  var bnoTotal   = totalKwh - sumHotKwh - sumHeatKwh;
-  var bnoPerApt  = bnoTotal / apts.length;
+  var bnoTotal = totalKwh - sumKvKwh - sumHeatDirect;
+  var bnoNeg   = bnoTotal < 0;
 
-  var mLbl = MEN[parseInt(month.split('-')[1], 10)] + ' ' + month.split('-')[0];
+  var warnHtml = bnoNeg
+    ? '<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:8px;color:#991b1b;font-weight:700;">⚠ Butų šildymas + karštas vanduo (' + (sumKvKwh + sumHeatDirect).toFixed(2) + ' kWh) viršija bendrą elektrą (' + totalKwh.toFixed(2) + ' kWh)! Sumažinkite kWh/m³ karšto vandens laukelį.</div>'
+    : '';
 
-  var html = '<div class="calc-summary">' +
+  var html = warnHtml + '<div class="calc-summary">' +
     '<span>Bendra elektra:</span><span><b>' + totalKwh.toFixed(2) + ' kWh</b></span>' +
-    '<span>Karštas vanduo iš viso:</span><span>' + sumHotKwh.toFixed(2) + ' kWh</span>' +
-    '<span>Šildymas iš viso:</span><span>' + sumHeatKwh.toFixed(2) + ' kWh</span>' +
-    '<span>BNO šildymas iš viso:</span><span>' + bnoTotal.toFixed(2) + ' kWh</span>' +
-    '<span>BNO vienam butui:</span><span>' + bnoPerApt.toFixed(2) + ' kWh</span>' +
+    '<span>K.V. iš viso:</span><span>' + sumKvKwh.toFixed(2) + ' kWh</span>' +
+    '<span>Šildymas iš viso:</span><span>' + sumHeatDirect.toFixed(2) + ' kWh</span>' +
+    '<span>BNO patalpų šildymas:</span><span' + (bnoNeg ? ' style="color:#dc2626;font-weight:700"' : '') + '>' + bnoTotal.toFixed(2) + ' kWh</span>' +
     '<span>Kaina:</span><span>' + price.toFixed(4) + ' EUR/kWh</span>' +
     '</div>';
 
@@ -1311,62 +1520,65 @@ function showCalcResults(apts, meters, readings, totalKwh, price, bnoCoeff, kwhP
     '<th>Butas</th><th>Abonentas</th>' +
     '<th>K.V. m³</th><th>K.V. kWh</th><th>K.V. EUR</th>' +
     '<th>Šild. kWh</th><th>Šild. EUR</th>' +
-    '<th>BNO kWh</th><th>BNO EUR</th>' +
-    '<th>Viso kWh</th><th>Viso EUR</th>' +
+    '<th>Viso EUR</th>' +
     '</tr></thead><tbody>';
 
-  var csvData = [['Butas','Abonentas','K.V. m3','K.V. kWh','K.V. EUR','Sild. kWh','Sild. EUR','BNO kWh','BNO EUR','Viso kWh','Viso EUR']];
-  var totViso = 0;
+  var csvData = [['Butas','Abonentas','K.V. m3','K.V. kWh','K.V. EUR','Sild. kWh','Sild. EUR','Viso EUR']];
+  var totAptEur = 0;
 
   rows.forEach(function(row) {
-    var hkwh  = row.hotKwh    !== null ? row.hotKwh    : 0;
-    var shkwh = row.heatDirect !== null ? row.heatDirect : 0;
-    var bkwh  = bnoPerApt;
-    var visoKwh = hkwh + shkwh + bkwh;
-    var visoEur = visoKwh * price;
-    totViso += visoEur;
-
-    var aptLbl = row.apt.apt_number || row.apt.id;
+    var aptEur = (row.kvKwh + row.heatKwh) * price;
+    totAptEur += aptEur;
+    var aptLbl = row.apt.apt_label || row.apt.number || row.apt.id;
     var tenant = row.apt.tenant_name || '';
 
     html += '<tr>' +
-      '<td>' + esc(String(aptLbl)) + '</td>' +
+      '<td><b>' + esc(String(aptLbl)) + '</b></td>' +
       '<td>' + esc(tenant) + '</td>' +
-      '<td>' + (row.hotWaterM3 !== null ? row.hotWaterM3.toFixed(3) : '—') + '</td>' +
-      '<td>' + hkwh.toFixed(2) + '</td>' +
-      '<td>' + (hkwh * price).toFixed(2) + '</td>' +
-      '<td>' + shkwh.toFixed(2) + '</td>' +
-      '<td>' + (shkwh * price).toFixed(2) + '</td>' +
-      '<td>' + bkwh.toFixed(2) + '</td>' +
-      '<td>' + (bkwh * price).toFixed(2) + '</td>' +
-      '<td>' + visoKwh.toFixed(2) + '</td>' +
-      '<td>' + visoEur.toFixed(2) + '</td>' +
+      '<td>' + row.kvM3.toFixed(3) + '</td>' +
+      '<td>' + row.kvKwh.toFixed(2) + '</td>' +
+      '<td>' + (row.kvKwh * price).toFixed(2) + '</td>' +
+      '<td>' + row.heatKwh.toFixed(2) + '</td>' +
+      '<td>' + (row.heatKwh * price).toFixed(2) + '</td>' +
+      '<td>' + aptEur.toFixed(2) + '</td>' +
       '</tr>';
 
     csvData.push([
       String(aptLbl), tenant,
-      row.hotWaterM3 !== null ? row.hotWaterM3.toFixed(3) : '',
-      hkwh.toFixed(2), (hkwh * price).toFixed(2),
-      shkwh.toFixed(2), (shkwh * price).toFixed(2),
-      bkwh.toFixed(2), (bkwh * price).toFixed(2),
-      visoKwh.toFixed(2), visoEur.toFixed(2)
+      row.kvM3.toFixed(3), row.kvKwh.toFixed(2), (row.kvKwh * price).toFixed(2),
+      row.heatKwh.toFixed(2), (row.heatKwh * price).toFixed(2),
+      aptEur.toFixed(2)
     ]);
   });
 
-  html += '</tbody><tfoot><tr><td colspan="10">Viso</td><td>' + totViso.toFixed(2) + ' EUR</td></tr></tfoot>' +
-    '</table></div>';
+  var bnoEur = bnoTotal * price;
+  var bnoStyle = bnoNeg ? ' style="background:#fee2e2;color:#991b1b;"' : ' style="background:#fef3c7;color:#92400e;"';
+  html += '</tbody><tfoot>' +
+    '<tr' + bnoStyle + '>' +
+      '<td colspan="5" style="font-weight:700;">BNO patalpų šildymas</td>' +
+      '<td colspan="2">' + bnoTotal.toFixed(2) + ' kWh</td>' +
+      '<td style="font-weight:700;">' + bnoEur.toFixed(2) + ' EUR</td>' +
+    '</tr>' +
+    '<tr style="background:#111827;color:#fff;">' +
+      '<td colspan="7" style="font-weight:700;">Viso</td>' +
+      '<td style="font-weight:700;">' + (totAptEur + (bnoNeg ? 0 : bnoEur)).toFixed(2) + ' EUR</td>' +
+    '</tr>' +
+    '</tfoot></table></div>';
 
-  html += '<button class="gen-btn" style="margin:12px 14px;" onclick="exportCalcCsv()">&#x1F4BE; CSV</button>';
+  csvData.push(['BNO patalpų šildymas','','','','',(bnoTotal).toFixed(2),'',bnoEur.toFixed(2)]);
 
-  out.innerHTML = html;
-  out._csvData  = csvData;
-  out._month    = month;
+  html += '<button class="gen-btn" style="margin:10px 0 16px;" onclick="exportCalcCsv()">&#x1F4BE; CSV</button>';
+
+  resDiv.innerHTML = html;
+  resDiv._csvData  = csvData;
+  resDiv._month    = month;
+  resDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function exportCalcCsv() {
-  var out = document.getElementById('calc-output');
-  if (!out._csvData) return;
-  exportCsv(out._csvData, 'elektra_' + out._month);
+  var resDiv = document.getElementById('calc-results');
+  if (!resDiv || !resDiv._csvData) return;
+  exportCsv(resDiv._csvData, 'elektra_' + resDiv._month);
 }
 
 /* ── CSV EXPORT ───────────────────────────────────── */

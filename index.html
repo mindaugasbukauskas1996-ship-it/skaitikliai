@@ -1484,23 +1484,30 @@ function parseHeatScreenshot(file, apiKey) {
     .then(function(data) {
       if (data.error) { status.textContent = '⚠ ' + data.error.message; return; }
       var text  = data.content && data.content[0] && data.content[0].text || '';
+      console.log('[AI raw response]:', text);
       var match = text.match(/\[[\s\S]*\]/);
-      if (!match) { status.textContent = '⚠ Nepavyko perskaityti atsakymo'; return; }
-      var items = JSON.parse(match[0]);
+      if (!match) { status.textContent = '⚠ Nepavyko perskaityti atsakymo. Raw: ' + text.slice(0,200); return; }
+      var items;
+      try { items = JSON.parse(match[0]); } catch(pe) { status.textContent = '⚠ JSON klaida: ' + pe.message; return; }
+      console.log('[AI parsed items]:', JSON.stringify(items));
       var filled = 0;
       items.forEach(function(item) {
+        console.log('[AI] apt=' + item.apt + ' rooms=' + JSON.stringify(item.rooms));
         calcApts.forEach(function(apt) {
           var lbl = String(apt.apt_label || apt.number || apt.id);
           if (String(item.apt) === lbl && item.rooms) {
             item.rooms.forEach(function(rm, ri) {
               var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
+              var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
+              var nuo = nuoEl ? nuoEl.value : '?';
+              console.log('[AI fill] apt=' + lbl + ' room=' + ri + ' nuo=' + nuo + ' ai_iki=' + rm.iki);
               if (ikiEl && rm.iki != null) ikiEl.value = rm.iki;
             });
             filled++;
           }
         });
       });
-      status.textContent = '✓ IKI rodmenys užpildyti ' + filled + ' iš ' + calcApts.length + ' butų';
+      status.textContent = '✓ IKI užpildyta ' + filled + ' butų. Patikrinkite konsolę (F12) ar reikšmės teisingos.';
     })
     .catch(function(e) { status.textContent = '⚠ ' + e.message; });
   };

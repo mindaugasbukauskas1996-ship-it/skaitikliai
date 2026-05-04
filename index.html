@@ -367,6 +367,17 @@ function sbPatch(path, body) {
     });
 }
 
+function sbUpsert(path, body) {
+  var h = sbHead();
+  h['Content-Type'] = 'application/json';
+  h['Prefer'] = 'resolution=merge-duplicates,return=minimal';
+  return fetch(SB_URL + '/rest/v1/' + path, { method: 'POST', headers: h, body: JSON.stringify(body) })
+    .then(function(r) {
+      if (!r.ok) { return r.text().then(function(t) { throw new Error(t); }); }
+      return null;
+    });
+}
+
 /* ── UTILITIES ────────────────────────────────────── */
 function esc(s) {
   return String(s == null ? '' : s)
@@ -1353,6 +1364,20 @@ function showCalcHeatTable(out) {
   html += '<div id="calc-results"></div>';
   out.innerHTML = html;
 
+  /* load saved heating entries for this period */
+  var month   = document.getElementById('calc-month').value;
+  var aptIds  = calcApts.map(function(a) { return a.id; }).join(',');
+  var status  = document.getElementById('ai-status');
+  sbGet('heating_entries?apartment_id=in.(' + aptIds + ')&period=eq.' + month)
+    .then(function(entries) {
+      entries.forEach(function(e) {
+        var el = document.querySelector('.heat-inp[data-apt="' + e.apartment_id + '"]');
+        if (el) el.value = e.kwh_total;
+      });
+      if (entries.length) status.textContent = '✓ Įkelti išsaugoti ' + entries.length + ' butų rodmenys';
+    })
+    .catch(function() {}); /* tyliai ignoruojam jei lentelės dar nėra */
+
   document.getElementById('btn-calc-run').addEventListener('click', runCalc);
   document.getElementById('calc-ai-img').addEventListener('change', function() {
     var file = this.files[0];
@@ -1441,6 +1466,18 @@ function runCalc() {
   if (!resDiv) return;
   if (isNaN(totalKwh) || isNaN(price) || isNaN(bnoCoeff) || isNaN(kwhPerM3)) {
     toast('Įveskite visus skaičius konfigūracijoje', 'err'); return;
+  }
+
+  /* save heating entries to DB */
+  var toSave = [];
+  document.querySelectorAll('.heat-inp').forEach(function(inp) {
+    var val = parseFloat(inp.value);
+    if (!isNaN(val)) toSave.push({ apartment_id: Number(inp.getAttribute('data-apt')), period: month, kwh_total: val });
+  });
+  if (toSave.length) {
+    sbUpsert('heating_entries?on_conflict=apartment_id,period', toSave)
+      .then(function() { toast('Šildymo rodmenys išsaugoti', 'ok'); })
+      .catch(function(e) { toast('Nepavyko išsaugoti: ' + e.message, 'err'); });
   }
 
   showCalcResults(resDiv, totalKwh, price, bnoCoeff, kwhPerM3, month);

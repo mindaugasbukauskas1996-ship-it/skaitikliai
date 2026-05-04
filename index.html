@@ -1317,25 +1317,37 @@ function loadCalcData() {
           var hwIds = [];
           var hwApt = {};
           meters.forEach(function(m) {
-            if (m.meter_types && (m.meter_types.code === 'hot_water' || m.meter_types.code === 'water_m3')) {
+            var code = m.meter_types && m.meter_types.code;
+            console.log('[calc] Meter id=' + m.id + ' apt=' + m.apartment_id + ' code=' + code);
+            if (code === 'hot_water' || code === 'water_m3') {
               hwIds.push(m.id);
               hwApt[m.id] = m.apartment_id;
             }
           });
+          console.log('[calc] Hot water meter IDs:', hwIds);
 
           if (!hwIds.length) {
+            toast('⚠ Karšto vandens skaitiklių nerasta šiame adrese', 'err');
             showCalcHeatTable(out);
             return;
           }
 
           sbGet('readings?meter_id=in.(' + hwIds.join(',') + ')&period=eq.' + month)
             .then(function(readings) {
+              console.log('[calc] Hot water readings for ' + month + ':', readings);
               readings.forEach(function(r) {
                 var aptId = hwApt[r.meter_id];
-                if (aptId !== undefined && r.value_from != null && r.value_to != null) {
-                  calcHotWater[aptId] = (calcHotWater[aptId] || 0) + (Number(r.value_to) - Number(r.value_from));
+                console.log('[calc] Reading meter_id=' + r.meter_id + ' aptId=' + aptId +
+                  ' value_from=' + r.value_from + ' value_to=' + r.value_to);
+                if (aptId !== undefined && r.value_to != null) {
+                  var from = r.value_from != null ? Number(r.value_from) : 0;
+                  calcHotWater[aptId] = (calcHotWater[aptId] || 0) + (Number(r.value_to) - from);
                 }
               });
+              console.log('[calc] calcHotWater:', JSON.stringify(calcHotWater));
+              if (!readings.length) {
+                toast('⚠ Kovo mėn. karšto vandens rodmenų nerasta', 'err');
+              }
               showCalcHeatTable(out);
             })
             .catch(function(e) { out.innerHTML = '<div class="loading">⚠ ' + esc(e.message) + '</div>'; });

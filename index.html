@@ -1370,7 +1370,24 @@ function showCalcHeatTable(out) {
         var el = document.querySelector('.heat-inp[data-apt="' + e.apartment_id + '"]');
         if (el) el.value = e.kwh_total;
       });
-      if (entries.length) status.textContent = '✓ Įkelti išsaugoti ' + entries.length + ' butų rodmenys';
+      var filledCurr = 0; var filledPrev = 0;
+      calcApts.forEach(function(apt) {
+        var curr = currMap[apt.id]; var prev = prevMap[apt.id];
+        for (var ri = 0; ri < ROOM_NAMES.length; ri++) {
+          var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
+          var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
+          if (curr && curr[ri]) {
+            if (nuoEl && curr[ri].nuo) nuoEl.value = Math.round(curr[ri].nuo);
+            if (ikiEl && curr[ri].iki) ikiEl.value = Math.round(curr[ri].iki);
+            filledCurr = 1;
+          } else if (prev && prev[ri] && prev[ri].iki) {
+            if (nuoEl) nuoEl.value = Math.round(prev[ri].iki); /* auto-fill NUO from last month's IKI */
+            filledPrev = 1;
+          }
+        }
+      });
+      if (filledCurr) status.textContent = '✓ Įkelti šio mėnesio rodmenys';
+      else if (filledPrev) status.textContent = '✓ NUO laukeliai užpildyti iš praėjusio mėnesio';
     })
     .catch(function() {}); /* tyliai ignoruojam jei lentelės dar nėra */
 
@@ -1440,9 +1457,15 @@ function parseHeatScreenshot(file, apiKey) {
         /* match by apt label/number */
         calcApts.forEach(function(apt) {
           var lbl = String(apt.apt_label || apt.number || apt.id);
-          if (String(item.apt) === lbl) {
-            var el = document.querySelector('.heat-inp[data-apt="' + apt.id + '"]');
-            if (el) { el.value = Number(item.kwh).toFixed(2); filled++; }
+          if (String(item.apt) === lbl && item.rooms) {
+            item.rooms.forEach(function(rm, ri) {
+              var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
+              var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
+              var nuo = nuoEl ? nuoEl.value : '?';
+              console.log('[AI fill] apt=' + lbl + ' room=' + ri + ' nuo=' + nuo + ' ai_iki=' + rm.iki);
+              if (ikiEl && rm.iki != null) ikiEl.value = Math.round(rm.iki);
+            });
+            filled++;
           }
         });
       });
@@ -1537,18 +1560,21 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
       '<td>' + esc(tenant) + '</td>' +
       '<td>' + row.kvM3.toFixed(3) + '</td>' +
       '<td>' + row.kvKwh.toFixed(2) + '</td>' +
-      '<td>' + (row.kvKwh * price).toFixed(2) + '</td>' +
-      '<td>' + row.heatKwh.toFixed(2) + '</td>' +
-      '<td>' + (row.heatKwh * price).toFixed(2) + '</td>' +
-      '<td>' + aptEur.toFixed(2) + '</td>' +
-      '</tr>';
+      '<td>' + (row.kvKwh * price).toFixed(2) + '</td>';
+    row.rooms.forEach(function(rm, ri) {
+      html += '<td style="border-left:2px solid var(--border);">' + Math.round(rm.nuo || 0) + '</td>' +
+              '<td>' + Math.round(rm.iki || 0) + '</td>' +
+              '<td><b>' + Math.round(rm.delta) + '</b></td>';
+    });
+    html += '<td>' + row.heatKwh.toFixed(2) + '</td>' +
+            '<td><b>' + visoKwh.toFixed(2) + '</b></td>' +
+            '<td><b>' + visoEur.toFixed(2) + '</b></td>' +
+            '</tr>';
 
-    csvData.push([
-      String(aptLbl), tenant,
-      row.kvM3.toFixed(3), row.kvKwh.toFixed(2), (row.kvKwh * price).toFixed(2),
-      row.heatKwh.toFixed(2), (row.heatKwh * price).toFixed(2),
-      aptEur.toFixed(2)
-    ]);
+    var xlsxRow = [aptLbl, tenant, row.kvM3, row.kvKwh, +(row.kvKwh * price).toFixed(2)];
+    row.rooms.forEach(function(rm){ xlsxRow.push(Math.round(rm.nuo||0), Math.round(rm.iki||0), Math.round(rm.delta)); });
+    xlsxRow.push(+row.heatKwh.toFixed(2), +visoKwh.toFixed(2), +visoEur.toFixed(2));
+    xlsxData.push(xlsxRow);
   });
 
   var bnoEur = bnoTotal * price;

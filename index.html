@@ -1469,8 +1469,14 @@ function parseHeatScreenshot(file, apiKey) {
                 'B) A heat accounting system report (e.g. with columns like "Sunaudota energijos", "Šildymo laikas", "Plotas m2", "Suma EUR") where each apartment ("N butas") has sub-rows per room.\n\n' +
                 'For format B: extract the "Sunaudota energijos" (or equivalent energy column) value for each room — these are the CURRENT accumulated IKI readings.\n' +
                 'For format A: extract the IKI column value for each room.\n\n' +
-                'Match rooms by name to these 4 slots (in this exact order): Svetainė [0], Miegamasis [1], Miegamasis 2 [2], San.mazgas [3].\n' +
-                'If a room is missing or shows 0h / 0 kWh, use 0.\n\n' +
+                'CRITICAL slot assignment rules — read rooms top-to-bottom for each apartment:\n' +
+                '  Slot [0] = FIRST row = Svetainė (living room)\n' +
+                '  Slot [3] = LAST row = San. mazgas (bathroom) — ALWAYS the last room listed\n' +
+                '  Slot [1] = first middle row = Miegamasis (first bedroom)\n' +
+                '  Slot [2] = second middle row = second Miegamasis (if exists); use 0 if apartment has only 1 bedroom\n' +
+                'Example: apartment with rows [Svetainė, Miegamasis, San.mazgas] → slots [925, 262, 0, 751]\n' +
+                'Example: apartment with rows [Svetainė, Miegamasis, Miegamasis, San.mazgas] → slots [3070, 556, 936, 722]\n' +
+                'NEVER put San.mazgas in slot [2]. San.mazgas is always slot [3].\n\n' +
                 'Return ONLY a JSON array, no explanation:\n' +
                 '[{"apt":1,"rooms":[{"iki":925.68},{"iki":262.33},{"iki":0},{"iki":751.61}]},{"apt":2,...},...]\n\n' +
                 'Apartment numbers in this address: ' + aptNums.join(', ') + '.\n' +

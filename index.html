@@ -1386,7 +1386,7 @@ function showCalcHeatTable(out) {
 
   var aptIds = calcApts.map(function(a) { return a.id; }).join(',');
   var status  = document.getElementById('ai-status');
-  sbGet('heating_entries?apartment_id=in.(' + aptIds + ')&period=in.(' + month + ',' + prevMonth + ')&select=apartment_id,period,kwh_total,kwh_from')
+  sbGet('heating_entries?apartment_id=in.(' + aptIds + ')&period=in.(' + month + ',' + prevMonth + ')&select=apartment_id,period,kwh_total')
     .then(function(entries) {
       var currMap = {}; var prevMap = {};
       entries.forEach(function(e) {
@@ -1399,7 +1399,8 @@ function showCalcHeatTable(out) {
         var nuoEl = document.querySelector('.heat-nuo[data-apt="' + apt.id + '"]');
         var ikiEl = document.querySelector('.heat-iki[data-apt="' + apt.id + '"]');
         if (curr) {
-          if (nuoEl && curr.kwh_from != null) nuoEl.value = Math.round(curr.kwh_from);
+          /* NUO = prev month IKI, IKI = current kwh_total */
+          if (nuoEl && prev && prev.kwh_total != null) nuoEl.value = Math.round(prev.kwh_total);
           if (ikiEl && curr.kwh_total != null) ikiEl.value = Math.round(curr.kwh_total);
           filledCurr = 1;
         } else if (prev && prev.kwh_total != null) {
@@ -1509,7 +1510,7 @@ function runCalc() {
     var nuo = nuoEl && nuoEl.value !== '' ? parseFloat(nuoEl.value) : 0;
     var iki = ikiEl && ikiEl.value !== '' ? parseFloat(ikiEl.value) : 0;
     if (iki > 0 || nuo > 0) {
-      toSave.push({ apartment_id: apt.id, period: month, kwh_total: iki, kwh_from: nuo });
+      toSave.push({ apartment_id: apt.id, period: month, kwh_total: iki });
     }
   });
 

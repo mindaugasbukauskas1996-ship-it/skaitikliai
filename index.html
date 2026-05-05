@@ -1129,6 +1129,14 @@ function switchTab(tab) {
     if (!document.getElementById('calc-month').value) {
       document.getElementById('calc-month').value = CUR_PERIOD;
     }
+    /* restore saved config fields */
+    ['calc-total-kwh','calc-price','calc-kwh-m3'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && !el.value) {
+        var v = localStorage.getItem(id);
+        if (v) el.value = v;
+      }
+    });
     var saved = localStorage.getItem('aiKey');
     if (saved) { var kf = document.getElementById('calc-ai-key'); if (kf && !kf.value) kf.value = saved; }
   }
@@ -1501,6 +1509,9 @@ function runCalc() {
   if (isNaN(totalKwh) || isNaN(price) || isNaN(kwhPerM3)) {
     toast('Įveskite visus skaičius konfigūracijoje', 'err'); return;
   }
+  localStorage.setItem('calc-total-kwh', totalKwh);
+  localStorage.setItem('calc-price', price);
+  localStorage.setItem('calc-kwh-m3', kwhPerM3);
 
   /* collect NUO/IKI and save */
   var toSave = [];

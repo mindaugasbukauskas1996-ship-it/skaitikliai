@@ -1637,11 +1637,12 @@ function exportCalcXlsx() {
 
   /* price is in cell B3 — EUR columns use =col*$B$3 formula */
   var DATA_START_ROW = 6; /* rows 1-4 = header, row 5 = col headers */
+  var xn = function(v) { return String(v).replace('.', ','); }; /* decimal dot → comma */
 
   var tbl = '<table border="1" style="border-collapse:collapse;">';
   tbl += '<tr><td><b>Adresas</b></td><td colspan="10">' + addrName + '</td></tr>';
   tbl += '<tr><td><b>Mėnuo</b></td><td colspan="10">' + month + '</td></tr>';
-  tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + price + '</td><td colspan="9"></td></tr>';
+  tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + xn(price) + '</td><td colspan="9"></td></tr>';
   tbl += '<tr><td colspan="11"></td></tr>';
   tbl += '<tr>' +
     '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>K.V. kWh</th><th>K.V. EUR</th>' +
@@ -1656,7 +1657,7 @@ function exportCalcXlsx() {
     tbl += '<tr>' +
       '<td>' + aptLbl + '</td>' +
       '<td>' + (row.apt.tenant_name || '') + '</td>' +
-      '<td>' + row.kvM3.toFixed(3) + '</td>' +
+      '<td>' + xn(row.kvM3.toFixed(3)) + '</td>' +
       '<td>' + kvKwh + '</td>' +
       '<td>=D' + r + '*$B$3</td>' +
       '<td>' + Math.round(row.nuo) + '</td>' +

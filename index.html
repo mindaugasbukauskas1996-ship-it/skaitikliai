@@ -154,15 +154,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .toast.ok{background:var(--green);}
 .toast.er{background:var(--red);}
 .hidden{display:none!important;}
-/* ── HEATING ROOM CARDS ───────────────────────────── */
-.apt-heat-card{background:#fff;border:1.5px solid var(--border);border-radius:10px;margin:0 0 8px;overflow:hidden;}
-.apt-heat-hdr{background:#f9fafb;border-bottom:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.apt-heat-hdr b{font-size:.9rem;}
-.kv-badge{margin-left:auto;font-size:.75rem;color:var(--blue);font-weight:700;background:#eff6ff;padding:3px 8px;border-radius:6px;}
-.heat-room-tbl{width:100%;border-collapse:collapse;font-size:.82rem;}
-.heat-room-tbl th{background:#f3f4f6;padding:5px 8px;text-align:left;font-size:.7rem;color:var(--muted);font-weight:700;white-space:nowrap;}
-.heat-room-tbl td{padding:4px 8px;border-top:1px solid var(--border);}
-.heat-room-tbl input{width:88px;padding:5px 6px;border:1.5px solid var(--inp-b);border-radius:6px;font-size:.9rem;background:var(--inp);font-family:'Courier New',monospace;}
 </style>
 </head>
 <body>
@@ -321,7 +312,6 @@ var SB_KEY = 'sb_publishable_PIjTvJ2COG3tG8WDSEguww_SsGFzB2B';
 var MEN = ['','sausis','vasaris','kovas','balandis','gegužė','birželis',
            'liepa','rugpjūtis','rugsėjis','spalis','lapkritis','gruodis'];
 
-var ROOM_NAMES       = ['Svetainė','Miegamasis','San. mazgas','Miegamasis 2'];
 var DIRECT_HEAT_RATIO = 0.7;
 
 /* current period */
@@ -1361,64 +1351,60 @@ function showCalcHeatTable(out) {
   var keyInp   = document.getElementById('calc-ai-key');
   if (keyInp && !keyInp.value && savedKey) keyInp.value = savedKey;
 
-  var month    = document.getElementById('calc-month').value;
+  var month     = document.getElementById('calc-month').value;
   var prevMonth = getPrevMonth(month);
 
   var html = '<div style="padding:8px 0 4px;display:flex;gap:8px;align-items:center;">' +
-    '<label style="font-size:.75rem;font-weight:700;color:var(--muted);flex:1;">&#x1F321;&#xFE0F; Šildymo skaitiklių rodmenys (' + month + '):</label>' +
+    '<label style="font-size:.75rem;font-weight:700;color:var(--muted);flex:1;">&#x1F321;&#xFE0F; Šildymo rodmenys (visi kambariai sumuoti) — ' + month + ':</label>' +
     '<label class="gen-btn" style="margin:0;cursor:pointer;font-size:.82rem;padding:9px 12px;" id="lbl-ai-upload">&#x1F4F7; Foto' +
     '<input type="file" id="calc-ai-img" accept="image/*" style="display:none;" /></label>' +
     '</div>';
   html += '<div id="ai-status" style="font-size:.78rem;color:var(--muted);padding-bottom:6px;min-height:18px;"></div>';
 
+  html += '<div class="rep-scroll"><table class="rep-table"><thead><tr>' +
+    '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th>' +
+    '<th>Šild. NUO (kWh)</th><th>Šild. IKI (kWh)</th>' +
+    '</tr></thead><tbody>';
+
   calcApts.forEach(function(apt) {
     var m3    = calcHotWater[apt.id];
     var aptLbl = apt.apt_label || apt.number || apt.id;
-    html += '<div class="apt-heat-card">' +
-      '<div class="apt-heat-hdr">' +
-        '<b>Butas ' + esc(String(aptLbl)) + '</b>' +
-        '<span style="color:var(--muted);font-size:.82rem;">' + esc(apt.tenant_name || '') + '</span>' +
-        '<span class="kv-badge">K.V.: ' + (m3 != null ? m3.toFixed(3) + ' m³' : '—') + '</span>' +
-      '</div>' +
-      '<table class="heat-room-tbl"><thead><tr><th>Kambarys</th><th>NUO (praeitas)</th><th>IKI (dabartinis)</th></tr></thead><tbody>';
-    ROOM_NAMES.forEach(function(rname, ri) {
-      html += '<tr>' +
-        '<td>' + esc(rname) + '</td>' +
-        '<td><input type="number" class="room-nuo" data-apt="' + apt.id + '" data-r="' + ri + '" inputmode="decimal" step="any" placeholder="0" /></td>' +
-        '<td><input type="number" class="room-iki" data-apt="' + apt.id + '" data-r="' + ri + '" inputmode="decimal" step="any" placeholder="0" /></td>' +
-        '</tr>';
-    });
-    html += '</tbody></table></div>';
+    var inpStyle = 'width:100px;padding:7px 8px;border:1.5px solid var(--inp-b);border-radius:7px;font-size:1rem;background:var(--inp);';
+    html += '<tr>' +
+      '<td><b>' + esc(String(aptLbl)) + '</b></td>' +
+      '<td>' + esc(apt.tenant_name || '') + '</td>' +
+      '<td>' + (m3 != null ? m3.toFixed(3) : '<span style="color:var(--muted)">—</span>') + '</td>' +
+      '<td><input type="number" class="heat-nuo" data-apt="' + apt.id + '" inputmode="decimal" step="any" placeholder="0" style="' + inpStyle + '" /></td>' +
+      '<td><input type="number" class="heat-iki" data-apt="' + apt.id + '" inputmode="decimal" step="any" placeholder="0" style="' + inpStyle + '" /></td>' +
+      '</tr>';
   });
 
+  html += '</tbody></table></div>';
   html += '<button class="gen-btn" style="margin:10px 0 4px;" id="btn-calc-run">&#x26A1; Skaičiuoti</button>';
   html += '<div id="calc-results"></div>';
   out.innerHTML = html;
 
-  /* load current month, then fall back to prev month for NUO */
   var aptIds = calcApts.map(function(a) { return a.id; }).join(',');
-  var status = document.getElementById('ai-status');
-  sbGet('heating_entries?apartment_id=in.(' + aptIds + ')&period=in.(' + month + ',' + prevMonth + ')&select=apartment_id,period,rooms')
+  var status  = document.getElementById('ai-status');
+  sbGet('heating_entries?apartment_id=in.(' + aptIds + ')&period=in.(' + month + ',' + prevMonth + ')&select=apartment_id,period,kwh_total,kwh_from')
     .then(function(entries) {
       var currMap = {}; var prevMap = {};
       entries.forEach(function(e) {
-        if (e.period === month)     currMap[e.apartment_id] = e.rooms;
-        if (e.period === prevMonth) prevMap[e.apartment_id] = e.rooms;
+        if (e.period === month)     currMap[e.apartment_id] = e;
+        if (e.period === prevMonth) prevMap[e.apartment_id] = e;
       });
       var filledCurr = 0; var filledPrev = 0;
       calcApts.forEach(function(apt) {
         var curr = currMap[apt.id]; var prev = prevMap[apt.id];
-        for (var ri = 0; ri < ROOM_NAMES.length; ri++) {
-          var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-          var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-          if (curr && curr[ri]) {
-            if (nuoEl && curr[ri].nuo) nuoEl.value = curr[ri].nuo;
-            if (ikiEl && curr[ri].iki) ikiEl.value = curr[ri].iki;
-            filledCurr = 1;
-          } else if (prev && prev[ri] && prev[ri].iki) {
-            if (nuoEl) nuoEl.value = prev[ri].iki; /* auto-fill NUO from last month's IKI */
-            filledPrev = 1;
-          }
+        var nuoEl = document.querySelector('.heat-nuo[data-apt="' + apt.id + '"]');
+        var ikiEl = document.querySelector('.heat-iki[data-apt="' + apt.id + '"]');
+        if (curr) {
+          if (nuoEl && curr.kwh_from != null) nuoEl.value = Math.round(curr.kwh_from);
+          if (ikiEl && curr.kwh_total != null) ikiEl.value = Math.round(curr.kwh_total);
+          filledCurr = 1;
+        } else if (prev && prev.kwh_total != null) {
+          if (nuoEl) nuoEl.value = Math.round(prev.kwh_total);
+          filledPrev = 1;
         }
       });
       if (filledCurr) status.textContent = '✓ Įkelti šio mėnesio rodmenys';
@@ -1439,12 +1425,12 @@ function showCalcHeatTable(out) {
 }
 
 function parseHeatScreenshot(file, apiKey) {
-  var status  = document.getElementById('ai-status');
+  var status = document.getElementById('ai-status');
   status.textContent = '⏳ Analizuojama…';
   var reader = new FileReader();
   reader.onload = function(e) {
-    var b64    = e.target.result.split(',')[1];
-    var mtype  = file.type || 'image/jpeg';
+    var b64     = e.target.result.split(',')[1];
+    var mtype   = file.type || 'image/jpeg';
     var aptNums = calcApts.map(function(a) { return a.apt_label || a.number || a.id; });
 
     fetch('https://api.anthropic.com/v1/messages', {
@@ -1457,24 +1443,21 @@ function parseHeatScreenshot(file, apiKey) {
       },
       body: JSON.stringify({
         model: 'claude-opus-4-7',
-        max_tokens: 2048,
+        max_tokens: 1024,
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mtype, data: b64 } },
             {
               type: 'text',
-              text: 'This is a Lithuanian apartment heating report. It may be either:\n' +
-                'A) A table with explicit NUO (previous) and IKI (current) meter counter columns, OR\n' +
-                'B) A heat accounting system report (e.g. with columns like "Sunaudota energijos", "Šildymo laikas", "Plotas m2", "Suma EUR") where each apartment ("N butas") has sub-rows per room.\n\n' +
-                'For format B: extract the "Sunaudota energijos" (or equivalent energy column) value for each room — these are the CURRENT accumulated IKI readings.\n' +
-                'For format A: extract the IKI column value for each room.\n\n' +
-                'Match rooms by name to these 4 slots (in this exact order): Svetainė [0], Miegamasis [1], San.mazgas [2], Miegamasis 2 [3].\n' +
-                'If a room is missing or shows 0h / 0 kWh, use 0.\n\n' +
-                'Return ONLY a JSON array, no explanation:\n' +
-                '[{"apt":1,"rooms":[{"iki":925.68},{"iki":262.33},{"iki":751.61},{"iki":0}]},{"apt":2,...},...]\n\n' +
-                'Apartment numbers in this address: ' + aptNums.join(', ') + '.\n' +
-                'IMPORTANT: read ALL apartment rows, not just the first one. Return one entry per apartment.'
+              text: 'This is a Lithuanian apartment heating report from a heat accounting system.\n' +
+                'Each apartment ("N butas") has multiple room rows: Svetainė, Miegamasis, San. mazgas, etc.\n' +
+                'Each room shows a cumulative energy value in the "Sunaudota energijos" column (kWh).\n\n' +
+                'For each apartment: ADD UP all room kWh values to get one total IKI number.\n' +
+                'Example: Svetainė 925.68 + Miegamasis 262.33 + San.mazgas 751.61 = 1939.62\n\n' +
+                'Return ONLY a JSON array:\n' +
+                '[{"apt":1,"iki":1939.62},{"apt":2,"iki":3361.46},...]\n\n' +
+                'Apartments: ' + aptNums.join(', ') + '. Return one entry per apartment.'
             }
           ]
         }]
@@ -1484,30 +1467,22 @@ function parseHeatScreenshot(file, apiKey) {
     .then(function(data) {
       if (data.error) { status.textContent = '⚠ ' + data.error.message; return; }
       var text  = data.content && data.content[0] && data.content[0].text || '';
-      console.log('[AI raw response]:', text);
+      console.log('[AI response]:', text);
       var match = text.match(/\[[\s\S]*\]/);
-      if (!match) { status.textContent = '⚠ Nepavyko perskaityti atsakymo. Raw: ' + text.slice(0,200); return; }
+      if (!match) { status.textContent = '⚠ Nepavyko perskaityti atsakymo'; return; }
       var items;
       try { items = JSON.parse(match[0]); } catch(pe) { status.textContent = '⚠ JSON klaida: ' + pe.message; return; }
-      console.log('[AI parsed items]:', JSON.stringify(items));
       var filled = 0;
       items.forEach(function(item) {
-        console.log('[AI] apt=' + item.apt + ' rooms=' + JSON.stringify(item.rooms));
         calcApts.forEach(function(apt) {
           var lbl = String(apt.apt_label || apt.number || apt.id);
-          if (String(item.apt) === lbl && item.rooms) {
-            item.rooms.forEach(function(rm, ri) {
-              var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-              var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-              var nuo = nuoEl ? nuoEl.value : '?';
-              console.log('[AI fill] apt=' + lbl + ' room=' + ri + ' nuo=' + nuo + ' ai_iki=' + rm.iki);
-              if (ikiEl && rm.iki != null) ikiEl.value = rm.iki;
-            });
-            filled++;
+          if (String(item.apt) === lbl && item.iki != null) {
+            var ikiEl = document.querySelector('.heat-iki[data-apt="' + apt.id + '"]');
+            if (ikiEl) { ikiEl.value = Math.round(item.iki); filled++; }
           }
         });
       });
-      status.textContent = '✓ IKI užpildyta ' + filled + ' butų. Patikrinkite konsolę (F12) ar reikšmės teisingos.';
+      status.textContent = '✓ IKI užpildyta ' + filled + ' butų';
     })
     .catch(function(e) { status.textContent = '⚠ ' + e.message; });
   };
@@ -1526,23 +1501,15 @@ function runCalc() {
     toast('Įveskite visus skaičius konfigūracijoje', 'err'); return;
   }
 
-  /* collect rooms and save */
+  /* collect NUO/IKI and save */
   var toSave = [];
   calcApts.forEach(function(apt) {
-    var rooms = [];
-    var anyFilled = false;
-    for (var ri = 0; ri < ROOM_NAMES.length; ri++) {
-      var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-      var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-      var nuo = nuoEl && nuoEl.value !== '' ? parseFloat(nuoEl.value) : 0;
-      var iki = ikiEl && ikiEl.value !== '' ? parseFloat(ikiEl.value) : 0;
-      rooms.push({ nuo: nuo, iki: iki });
-      if (nuo > 0 || iki > 0) anyFilled = true;
-    }
-    if (anyFilled) {
-      var delta   = rooms.reduce(function(s,r){ return s + Math.max(0, r.iki - r.nuo); }, 0);
-      var heatKwh = delta * DIRECT_HEAT_RATIO;
-      toSave.push({ apartment_id: apt.id, period: month, kwh_total: heatKwh, rooms: rooms });
+    var nuoEl = document.querySelector('.heat-nuo[data-apt="' + apt.id + '"]');
+    var ikiEl = document.querySelector('.heat-iki[data-apt="' + apt.id + '"]');
+    var nuo = nuoEl && nuoEl.value !== '' ? parseFloat(nuoEl.value) : 0;
+    var iki = ikiEl && ikiEl.value !== '' ? parseFloat(ikiEl.value) : 0;
+    if (iki > 0 || nuo > 0) {
+      toSave.push({ apartment_id: apt.id, period: month, kwh_total: iki, kwh_from: nuo });
     }
   });
 
@@ -1556,26 +1523,19 @@ function runCalc() {
 }
 
 function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
-  /* collect rooms from inputs */
   var rows = [];
   var sumKvKwh = 0; var sumHeatKwh = 0;
 
   calcApts.forEach(function(apt) {
-    var kvM3    = calcHotWater[apt.id] != null ? calcHotWater[apt.id] : 0;
-    var kvKwh   = kvM3 * kwhPerM3;
-    var rooms   = [];
-    var totalDelta = 0;
-    for (var ri = 0; ri < ROOM_NAMES.length; ri++) {
-      var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-      var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
-      var nuo = nuoEl && nuoEl.value !== '' ? parseFloat(nuoEl.value) : 0;
-      var iki = ikiEl && ikiEl.value !== '' ? parseFloat(ikiEl.value) : 0;
-      var delta = Math.max(0, iki - nuo);
-      rooms.push({ nuo: nuo, iki: iki, delta: delta });
-      totalDelta += delta;
-    }
-    var heatKwh = totalDelta * DIRECT_HEAT_RATIO;
-    rows.push({ apt: apt, kvM3: kvM3, kvKwh: kvKwh, heatKwh: heatKwh, rooms: rooms });
+    var kvM3  = calcHotWater[apt.id] != null ? calcHotWater[apt.id] : 0;
+    var kvKwh = kvM3 * kwhPerM3;
+    var nuoEl = document.querySelector('.heat-nuo[data-apt="' + apt.id + '"]');
+    var ikiEl = document.querySelector('.heat-iki[data-apt="' + apt.id + '"]');
+    var nuo   = nuoEl && nuoEl.value !== '' ? parseFloat(nuoEl.value) : 0;
+    var iki   = ikiEl && ikiEl.value !== '' ? parseFloat(ikiEl.value) : 0;
+    var delta   = Math.max(0, iki - nuo);
+    var heatKwh = delta * DIRECT_HEAT_RATIO;
+    rows.push({ apt: apt, kvM3: kvM3, kvKwh: kvKwh, nuo: nuo, iki: iki, delta: delta, heatKwh: heatKwh });
     sumKvKwh  += kvKwh;
     sumHeatKwh += heatKwh;
   });
@@ -1596,37 +1556,14 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
     '<span>Kaina:</span><span>' + price.toFixed(4) + ' EUR/kWh</span>' +
     '</div>';
 
-  /* ── grouped header table ── */
-  var rShort = ['Sv.','Mieg.','San.','M2.'];
-  /* header row 1 */
-  html += '<div class="rep-scroll"><table class="rep-table"><thead>' +
-    '<tr>' +
-      '<th rowspan="2">Butas</th><th rowspan="2">Abonentas</th>' +
-      '<th rowspan="2">K.V. m³</th><th rowspan="2">K.V. kWh</th><th rowspan="2">K.V. EUR</th>';
-  ROOM_NAMES.forEach(function(rn) {
-    html += '<th colspan="3" style="text-align:center;border-left:2px solid #374151;">' + esc(rn) + '</th>';
-  });
-  html += '<th rowspan="2">Šild. kWh</th><th rowspan="2">Viso kWh</th><th rowspan="2">Viso EUR</th>' +
-    '</tr>';
-  /* header row 2 */
-  html += '<tr>';
-  ROOM_NAMES.forEach(function() {
-    html += '<th style="border-left:2px solid #374151;">NUO</th><th>IKI</th><th>Δ</th>';
-  });
-  html += '</tr></thead><tbody>';
+  html += '<div class="rep-scroll"><table class="rep-table"><thead><tr>' +
+    '<th>Butas</th><th>Abonentas</th>' +
+    '<th>K.V. m³</th><th>K.V. kWh</th><th>K.V. EUR</th>' +
+    '<th style="border-left:2px solid #374151;">Šild. NUO</th><th>Šild. IKI</th><th>Šild. Δ</th>' +
+    '<th>Šild. kWh</th><th>Viso kWh</th><th>Viso EUR</th>' +
+    '</tr></thead><tbody>';
 
-  var xlsxData = [];
-  /* xlsx header row 1 */
-  var hdr1 = ['Butas','Abonentas','K.V. m3','K.V. kWh','K.V. EUR'];
-  ROOM_NAMES.forEach(function(rn){ hdr1.push(rn,'',''); });
-  hdr1.push('Sild. kWh','Viso kWh','Viso EUR');
-  xlsxData.push(hdr1);
-  /* xlsx header row 2 */
-  var hdr2 = ['','','','',''];
-  ROOM_NAMES.forEach(function(){ hdr2.push('NUO','IKI','Delta'); });
-  hdr2.push('','','');
-  xlsxData.push(hdr2);
-
+  var xlsxData = [['Butas','Abonentas','K.V. m3','K.V. kWh','K.V. EUR','Sild. NUO','Sild. IKI','Sild. Delta','Sild. kWh','Viso kWh','Viso EUR']];
   var totAptEur = 0;
 
   rows.forEach(function(row) {
@@ -1641,44 +1578,35 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
       '<td>' + esc(tenant) + '</td>' +
       '<td>' + row.kvM3.toFixed(3) + '</td>' +
       '<td>' + row.kvKwh.toFixed(2) + '</td>' +
-      '<td>' + (row.kvKwh * price).toFixed(2) + '</td>';
-    row.rooms.forEach(function(rm, ri) {
-      html += '<td style="border-left:2px solid var(--border);">' + (rm.nuo || 0) + '</td>' +
-              '<td>' + (rm.iki || 0) + '</td>' +
-              '<td><b>' + rm.delta.toFixed(0) + '</b></td>';
-    });
-    html += '<td>' + row.heatKwh.toFixed(2) + '</td>' +
-            '<td><b>' + visoKwh.toFixed(2) + '</b></td>' +
-            '<td><b>' + visoEur.toFixed(2) + '</b></td>' +
-            '</tr>';
+      '<td>' + (row.kvKwh * price).toFixed(2) + '</td>' +
+      '<td style="border-left:2px solid var(--border);">' + Math.round(row.nuo) + '</td>' +
+      '<td>' + Math.round(row.iki) + '</td>' +
+      '<td><b>' + Math.round(row.delta) + '</b></td>' +
+      '<td>' + row.heatKwh.toFixed(2) + '</td>' +
+      '<td><b>' + visoKwh.toFixed(2) + '</b></td>' +
+      '<td><b>' + visoEur.toFixed(2) + '</b></td>' +
+      '</tr>';
 
-    var xlsxRow = [aptLbl, tenant, row.kvM3, row.kvKwh, +(row.kvKwh * price).toFixed(2)];
-    row.rooms.forEach(function(rm){ xlsxRow.push(rm.nuo||0, rm.iki||0, rm.delta); });
-    xlsxRow.push(+row.heatKwh.toFixed(2), +visoKwh.toFixed(2), +visoEur.toFixed(2));
-    xlsxData.push(xlsxRow);
+    xlsxData.push([aptLbl, tenant, row.kvM3, row.kvKwh, +(row.kvKwh * price).toFixed(2),
+      Math.round(row.nuo), Math.round(row.iki), Math.round(row.delta),
+      +row.heatKwh.toFixed(2), +visoKwh.toFixed(2), +visoEur.toFixed(2)]);
   });
 
-  /* BNO tfoot */
-  var bnoColspan = 5 + ROOM_NAMES.length * 3;
-  var bnoStyle   = bnoNeg ? ' style="background:#fee2e2;color:#991b1b;"' : ' style="background:#fef3c7;color:#92400e;"';
-  var totalCols  = 5 + ROOM_NAMES.length * 3 + 3;
+  var bnoStyle = bnoNeg ? ' style="background:#fee2e2;color:#991b1b;"' : ' style="background:#fef3c7;color:#92400e;"';
   html += '</tbody><tfoot>' +
     '<tr' + bnoStyle + '>' +
-      '<td colspan="' + bnoColspan + '" style="font-weight:700;">BNO patalpų šildymas</td>' +
+      '<td colspan="8" style="font-weight:700;">BNO patalpų šildymas</td>' +
       '<td>' + bnoKwh.toFixed(2) + '</td>' +
       '<td>' + bnoKwh.toFixed(2) + '</td>' +
       '<td style="font-weight:700;">' + bnoEur.toFixed(2) + '</td>' +
     '</tr>' +
     '<tr style="background:#111827;color:#fff;">' +
-      '<td colspan="' + (totalCols - 1) + '" style="font-weight:700;">Viso</td>' +
+      '<td colspan="10" style="font-weight:700;">Viso</td>' +
       '<td style="font-weight:700;">' + (totAptEur + (bnoNeg ? 0 : bnoEur)).toFixed(2) + '</td>' +
     '</tr>' +
     '</tfoot></table></div>';
 
-  var bnoXlsx = ['BNO patalpų šildymas'];
-  for (var i = 1; i < bnoColspan; i++) bnoXlsx.push('');
-  bnoXlsx.push(+bnoKwh.toFixed(2), +bnoKwh.toFixed(2), +bnoEur.toFixed(2));
-  xlsxData.push(bnoXlsx);
+  xlsxData.push(['BNO patalpų šildymas','','','','','','','',+bnoKwh.toFixed(2),+bnoKwh.toFixed(2),+bnoEur.toFixed(2)]);
 
   html += '<button class="gen-btn" style="margin:10px 4px 16px 0;" onclick="exportCalcXlsx()">&#x1F4CA; Excel</button>' +
           '<button class="gen-btn" style="margin:10px 0 16px;background:#374151;" onclick="exportCalcCsv()">&#x1F4BE; CSV</button>';

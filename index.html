@@ -1469,16 +1469,11 @@ function parseHeatScreenshot(file, apiKey) {
                 'B) A heat accounting system report (e.g. with columns like "Sunaudota energijos", "Šildymo laikas", "Plotas m2", "Suma EUR") where each apartment ("N butas") has sub-rows per room.\n\n' +
                 'For format B: extract the "Sunaudota energijos" (or equivalent energy column) value for each room — these are the CURRENT accumulated IKI readings.\n' +
                 'For format A: extract the IKI column value for each room.\n\n' +
-                'CRITICAL slot assignment rules — read rooms top-to-bottom for each apartment:\n' +
-                '  Slot [0] = FIRST row = Svetainė (living room)\n' +
-                '  Slot [3] = LAST row = San. mazgas (bathroom) — ALWAYS the last room listed\n' +
-                '  Slot [1] = first middle row = Miegamasis (first bedroom)\n' +
-                '  Slot [2] = second middle row = second Miegamasis (if exists); use 0 if apartment has only 1 bedroom\n' +
-                'Example: apartment with rows [Svetainė, Miegamasis, San.mazgas] → slots [925, 262, 0, 751]\n' +
-                'Example: apartment with rows [Svetainė, Miegamasis, Miegamasis, San.mazgas] → slots [3070, 556, 936, 722]\n' +
-                'NEVER put San.mazgas in slot [2]. San.mazgas is always slot [3].\n\n' +
+                'Map rooms to slots in this order: Svetainė [0], Miegamasis [1], San.mazgas [2], Miegamasis 2 [3].\n' +
+                'If an apartment has only 1 bedroom, put 0 in slot [3] (Miegamasis 2).\n' +
+                'If a room shows 0h / 0 kWh, use 0.\n\n' +
                 'Return ONLY a JSON array, no explanation:\n' +
-                '[{"apt":1,"rooms":[{"iki":925.68},{"iki":262.33},{"iki":0},{"iki":751.61}]},{"apt":2,...},...]\n\n' +
+                '[{"apt":1,"rooms":[{"iki":925.68},{"iki":262.33},{"iki":751.61},{"iki":0}]},{"apt":2,...},...]\n\n' +
                 'Apartment numbers in this address: ' + aptNums.join(', ') + '.\n' +
                 'IMPORTANT: read ALL apartment rows, not just the first one. Return one entry per apartment.'
             }
@@ -1502,7 +1497,10 @@ function parseHeatScreenshot(file, apiKey) {
         calcApts.forEach(function(apt) {
           var lbl = String(apt.apt_label || apt.number || apt.id);
           if (String(item.apt) === lbl && item.rooms) {
-            item.rooms.forEach(function(rm, ri) {
+            /* AI returns [Svetainė, Miegamasis, San.mazgas, Miegamasis2] — swap [2]↔[3] to match display order */
+            var rooms = item.rooms.slice();
+            if (rooms.length >= 4) { var tmp = rooms[2]; rooms[2] = rooms[3]; rooms[3] = tmp; }
+            rooms.forEach(function(rm, ri) {
               var ikiEl = document.querySelector('.room-iki[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
               var nuoEl = document.querySelector('.room-nuo[data-apt="' + apt.id + '"][data-r="' + ri + '"]');
               var nuo = nuoEl ? nuoEl.value : '?';

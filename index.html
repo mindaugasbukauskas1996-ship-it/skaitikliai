@@ -1604,14 +1604,21 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
   var bnoStyle = bnoNeg ? ' style="background:#fee2e2;color:#991b1b;"' : ' style="background:#fef3c7;color:#92400e;"';
   var visoSuma = totAptEur + (bnoNeg ? 0 : bnoEur);
   var visoKwh  = rows.reduce(function(s,r){return s+r.kvKwh+r.heatKwh;},0) + bnoKwh;
+  /* BNO as regular apartment-style row at the bottom of tbody */
+  html += '<tr' + bnoStyle + '>' +
+    '<td style="font-weight:700;">BNO</td>' +
+    '<td>BNO patalpų</td>' +
+    '<td></td>' +   /* K.V. m³ */
+    '<td></td>' +   /* K.V. kWh */
+    '<td></td>' +   /* Šild. NUO */
+    '<td></td>' +   /* Šild. IKI */
+    '<td></td>' +   /* Šild. Δ */
+    '<td>' + Math.round(bnoKwh) + '</td>' +
+    '<td style="border-left:2px solid var(--border);">—</td>' +
+    '<td>' + bnoEur.toFixed(2) + '</td>' +
+    '<td style="font-weight:700;">' + bnoEur.toFixed(2) + '</td>' +
+  '</tr>';
   html += '</tbody><tfoot>' +
-    '<tr' + bnoStyle + '>' +
-      '<td colspan="7" style="font-weight:700;">BNO patalpų šildymas</td>' +
-      '<td>' + Math.round(bnoKwh) + '</td>' +
-      '<td style="border-left:2px solid var(--border);">—</td>' +
-      '<td>' + bnoEur.toFixed(2) + '</td>' +
-      '<td style="font-weight:700;">' + bnoEur.toFixed(2) + '</td>' +
-    '</tr>' +
     '<tr style="background:#111827;color:#fff;">' +
       '<td colspan="10" style="font-weight:700;">Viso suma už elektrą</td>' +
       '<td style="font-weight:700;">' + visoSuma.toFixed(2) + ' EUR</td>' +
@@ -1694,11 +1701,17 @@ function exportCalcXlsx() {
 
     var bnoR = dataR + 1;
     tbl += '<tr>' +
-      '<td colspan="7"><b>Nepaskirstytas šildymas su BNO elektra</b></td>' +
+      '<td><b>BNO</b></td>' +
+      '<td>BNO patalpų</td>' +
+      '<td></td>' +   /* K.V. m³ */
+      '<td></td>' +   /* K.V. kWh */
+      '<td></td>' +   /* Šild. NUO */
+      '<td></td>' +   /* Šild. IKI */
+      '<td></td>' +   /* Šild. Δ */
       '<td>' + Math.round(sBnoKwh) + '</td>' +
       '<td>—</td>' +
       '<td>=H' + bnoR + '*$B$3</td>' +
-      '<td>=J' + bnoR + '</td>' +
+      '<td>=H' + bnoR + '*$B$3</td>' +
       '</tr>';
     tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
       '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';
@@ -1800,14 +1813,20 @@ function exportAllXlsx() {
         '</Row>';
       r++;
     });
-    /* BNO row */
+    /* BNO as regular apartment-style row */
     var bnoR = r;
     xml += '<Row>' +
-      cs('Nepaskirstytas šildymas su BNO elektra', 7) +
-      cn(Math.round(res.bnoKwh)) +
-      cs('—') +
-      cf('=RC8*R3C2') +   /* EUR Šild. = H_bno * price */
-      cf('=RC[-1]') +     /* Suma = J of same row */
+      cs('BNO') +           /* A - Butas */
+      cs('BNO patalpų') +   /* B - Abonentas */
+      cs('') +              /* C - K.V. m³ (empty) */
+      cs('') +              /* D - K.V. kWh (empty) */
+      cs('') +              /* E - Šild. NUO (empty) */
+      cs('') +              /* F - Šild. IKI (empty) */
+      cs('') +              /* G - Šild. Δ (empty) */
+      cn(Math.round(res.bnoKwh)) + /* H - Šild. kWh */
+      cs('—') +             /* I - EUR K.V. (n/a) */
+      cf('=RC8*R3C2') +     /* J - EUR Šild. */
+      cf('=RC[-1]') +       /* K - Suma = J (no water) */
       '</Row>';
     /* Viso suma row */
     xml += '<Row>' +

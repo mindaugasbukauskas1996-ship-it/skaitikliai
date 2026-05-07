@@ -1777,13 +1777,15 @@ function exportAllXlsx() {
     tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
       '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';
     tbl += '<tr><td colspan="11"></td></tr>';
-    return bnoR + 2;
+    return { tbl: tbl, nextOffset: bnoR + 2 };
   };
 
   var tbl = '<table border="1" style="border-collapse:collapse;">';
   var nextOffset = 0;
   keys.forEach(function(k) {
-    nextOffset = buildSection(calcAllResults[k], nextOffset);
+    var res = buildSection(calcAllResults[k], nextOffset);
+    tbl += res.tbl;
+    nextOffset = res.nextOffset;
   });
   tbl += '</table>';
 

@@ -1740,89 +1740,73 @@ function exportAllXlsx() {
   var keys = Object.keys(calcAllResults);
   if (!keys.length) { toast('Pirmiausia skaičiuokite abi adresus', 'err'); return; }
   var month = calcAllResults[keys[0]].month;
+  var xn = function(v) { return String(v).replace('.', ','); };
   var DATA_START_ROW = 6;
 
-  var esc = function(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  };
-  var num = function(v) { return '<Data ss:Type="Number">' + v + '</Data>'; };
-  var str = function(v) { return '<Data ss:Type="String">' + esc(String(v)) + '</Data>'; };
-  var formula = function(f) { return ' ss:Formula="' + f + '"'; };
-
-  var buildWorksheet = function(res) {
-    var xml = '';
-    /* rows 1-3: header info */
-    xml += '<Row><Cell>' + str('Adresas') + '</Cell><Cell ss:MergeAcross="9">' + str(res.addrName) + '</Cell></Row>';
-    xml += '<Row><Cell>' + str('Mėnuo') + '</Cell><Cell ss:MergeAcross="9">' + str(res.month) + '</Cell></Row>';
-    xml += '<Row><Cell>' + str('Kaina EUR/kWh') + '</Cell><Cell>' + num(res.price) + '</Cell></Row>';
-    /* row 4: empty */
-    xml += '<Row><Cell ss:MergeAcross="10">' + str('') + '</Cell></Row>';
-    /* row 5: column headers */
-    xml += '<Row>' +
-      '<Cell>' + str('Butas') + '</Cell>' +
-      '<Cell>' + str('Abonentas') + '</Cell>' +
-      '<Cell>' + str('K.V. m³') + '</Cell>' +
-      '<Cell>' + str('K.V. kWh') + '</Cell>' +
-      '<Cell>' + str('Šild. NUO') + '</Cell>' +
-      '<Cell>' + str('Šild. IKI') + '</Cell>' +
-      '<Cell>' + str('Šild. Δ') + '</Cell>' +
-      '<Cell>' + str('Šild. kWh') + '</Cell>' +
-      '<Cell>' + str('EUR už K.V.') + '</Cell>' +
-      '<Cell>' + str('EUR už Šild.') + '</Cell>' +
-      '<Cell>' + str('Suma EUR') + '</Cell>' +
-      '</Row>';
-    /* data rows starting at row 6 */
+  var buildTable = function(res) {
+    var tbl = '<table border="1" style="border-collapse:collapse;">';
+    tbl += '<tr><td><b>Adresas</b></td><td colspan="10">' + res.addrName + '</td></tr>';
+    tbl += '<tr><td><b>Mėnuo</b></td><td colspan="10">' + res.month + '</td></tr>';
+    tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + xn(res.price) + '</td><td colspan="9"></td></tr>';
+    tbl += '<tr><td colspan="11"></td></tr>';
+    tbl += '<tr>' +
+      '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>K.V. kWh</th>' +
+      '<th>Šild. NUO</th><th>Šild. IKI</th><th>Šild. Δ</th><th>Šild. kWh</th>' +
+      '<th>EUR už K.V.</th><th>EUR už Šild.</th><th>Suma EUR</th>' +
+      '</tr>';
     var r = DATA_START_ROW;
     res.rows.forEach(function(row) {
       var aptLbl = String(row.apt.apt_label || row.apt.number || row.apt.id);
-      xml += '<Row>' +
-        '<Cell>' + str(aptLbl) + '</Cell>' +
-        '<Cell>' + str(row.apt.tenant_name || '') + '</Cell>' +
-        '<Cell>' + num(row.kvM3.toFixed(3)) + '</Cell>' +
-        '<Cell>' + num(Math.round(row.kvKwh)) + '</Cell>' +
-        '<Cell>' + num(Math.round(row.nuo)) + '</Cell>' +
-        '<Cell>' + num(Math.round(row.iki)) + '</Cell>' +
-        '<Cell>' + num(Math.round(row.delta)) + '</Cell>' +
-        '<Cell>' + num(Math.round(row.heatKwh)) + '</Cell>' +
-        '<Cell' + formula('=D' + r + '*$B$3') + '>' + num(0) + '</Cell>' +
-        '<Cell' + formula('=H' + r + '*$B$3') + '>' + num(0) + '</Cell>' +
-        '<Cell' + formula('=I' + r + '+J' + r) + '>' + num(0) + '</Cell>' +
-        '</Row>';
+      tbl += '<tr>' +
+        '<td>' + aptLbl + '</td>' +
+        '<td>' + (row.apt.tenant_name || '') + '</td>' +
+        '<td>' + xn(row.kvM3.toFixed(3)) + '</td>' +
+        '<td>' + Math.round(row.kvKwh) + '</td>' +
+        '<td>' + Math.round(row.nuo) + '</td>' +
+        '<td>' + Math.round(row.iki) + '</td>' +
+        '<td>' + Math.round(row.delta) + '</td>' +
+        '<td>' + Math.round(row.heatKwh) + '</td>' +
+        '<td>=D' + r + '*$B$3</td>' +
+        '<td>=H' + r + '*$B$3</td>' +
+        '<td>=I' + r + '+J' + r + '</td>' +
+        '</tr>';
       r++;
     });
-    /* BNO row */
     var bnoR = r;
-    xml += '<Row>' +
-      '<Cell ss:MergeAcross="6">' + str('Nepaskirstytas šildymas su BNO elektra') + '</Cell>' +
-      '<Cell>' + num(Math.round(res.bnoKwh)) + '</Cell>' +
-      '<Cell>' + str('—') + '</Cell>' +
-      '<Cell' + formula('=H' + bnoR + '*$B$3') + '>' + num(0) + '</Cell>' +
-      '<Cell' + formula('=J' + bnoR) + '>' + num(0) + '</Cell>' +
-      '</Row>';
-    /* Viso row */
-    xml += '<Row>' +
-      '<Cell ss:MergeAcross="9">' + str('Viso suma už elektrą') + '</Cell>' +
-      '<Cell' + formula('=SUM(K' + DATA_START_ROW + ':K' + bnoR + ')') + '>' + num(0) + '</Cell>' +
-      '</Row>';
-    return xml;
+    tbl += '<tr>' +
+      '<td colspan="7"><b>Nepaskirstytas šildymas su BNO elektra</b></td>' +
+      '<td>' + Math.round(res.bnoKwh) + '</td>' +
+      '<td>—</td>' +
+      '<td>=H' + bnoR + '*$B$3</td>' +
+      '<td>=J' + bnoR + '</td>' +
+      '</tr>';
+    tbl += '<tr>' +
+      '<td colspan="10"><b>Viso suma už elektrą</b></td>' +
+      '<td><b>=SUM(K' + DATA_START_ROW + ':K' + bnoR + ')</b></td>' +
+      '</tr>';
+    tbl += '</table>';
+    return tbl;
   };
 
-  var wb = '<?xml version="1.0" encoding="UTF-8"?>' +
-    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' +
-    ' xmlns:o="urn:schemas-microsoft-com:office:office"' +
-    ' xmlns:x="urn:schemas-microsoft-com:office:excel"' +
-    ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
 
-  keys.forEach(function(k) {
-    var res = calcAllResults[k];
-    var sheetName = esc(res.addrName.replace(/[\[\]:\/\\?*]/g,'').substring(0,31));
-    wb += '<Worksheet ss:Name="' + sheetName + '"><Table>' +
-      buildWorksheet(res) +
-      '</Table></Worksheet>';
+  var sheetsXml = '';
+  keys.forEach(function(k, i) {
+    var name = calcAllResults[k].addrName.replace(/[<>&"]/g, '').substring(0, 31);
+    sheetsXml += '<x:ExcelWorksheet><x:Name>' + name + '</x:Name>' +
+      (i === 0 ? '<x:WorksheetOptions><x:Selected/></x:WorksheetOptions>' : '') +
+      '</x:ExcelWorksheet>';
   });
-  wb += '</Workbook>';
 
-  var blob = new Blob([wb], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  var body = '';
+  keys.forEach(function(k) { body += buildTable(calcAllResults[k]); });
+
+  var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office"' +
+    ' xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+    '<head><meta charset="UTF-8">' +
+    '<xml><x:ExcelWorkbook><x:ExcelWorksheets>' + sheetsXml + '</x:ExcelWorksheets></x:ExcelWorkbook></xml>' +
+    '</head><body>' + body + '</body></html>';
+
+  var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   a.href = url; a.download = 'elektra_2_2A_' + month + '.xls';

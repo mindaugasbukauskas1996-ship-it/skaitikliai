@@ -1292,6 +1292,7 @@ function generateReport() {
 /* ── ELECTRICITY CALCULATOR ───────────────────────── */
 var calcApts     = [];
 var calcHotWater = {}; // apt_id -> m3 consumed
+var calcAllResults = {}; // addrName -> result set for combined export
 
 function loadCalcData() {
   var addrId = document.getElementById('calc-addr').value;
@@ -1570,18 +1571,18 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
 
   html += '<div class="rep-scroll"><table class="rep-table"><thead><tr>' +
     '<th>Butas</th><th>Abonentas</th>' +
-    '<th>K.V. m³</th><th>K.V. kWh</th><th>K.V. EUR</th>' +
-    '<th style="border-left:2px solid #374151;">Šild. NUO</th><th>Šild. IKI</th><th>Šild. Δ</th>' +
-    '<th>Šild. kWh</th><th>Viso kWh</th><th>Viso EUR</th>' +
+    '<th>K.V. m³</th><th>K.V. kWh</th>' +
+    '<th style="border-left:2px solid #374151;">Šild. NUO</th><th>Šild. IKI</th><th>Šild. Δ</th><th>Šild. kWh</th>' +
+    '<th style="border-left:2px solid #374151;">EUR už K.V.</th><th>EUR už Šild.</th><th>Suma EUR</th>' +
     '</tr></thead><tbody>';
 
-  var xlsxData = [['Butas','Abonentas','K.V. m3','K.V. kWh','K.V. EUR','Sild. NUO','Sild. IKI','Sild. Delta','Sild. kWh','Viso kWh','Viso EUR']];
   var totAptEur = 0;
 
   rows.forEach(function(row) {
-    var visoKwh = row.kvKwh + row.heatKwh;
-    var visoEur = visoKwh * price;
-    totAptEur  += visoEur;
+    var kvEur   = row.kvKwh * price;
+    var heatEur = row.heatKwh * price;
+    var sumaEur = kvEur + heatEur;
+    totAptEur  += sumaEur;
     var aptLbl  = String(row.apt.apt_label || row.apt.number || row.apt.id);
     var tenant  = row.apt.tenant_name || '';
 
@@ -1589,45 +1590,47 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
       '<td><b>' + esc(aptLbl) + '</b></td>' +
       '<td>' + esc(tenant) + '</td>' +
       '<td>' + row.kvM3.toFixed(3) + '</td>' +
-      '<td>' + row.kvKwh.toFixed(2) + '</td>' +
-      '<td>' + (row.kvKwh * price).toFixed(2) + '</td>' +
+      '<td>' + Math.round(row.kvKwh) + '</td>' +
       '<td style="border-left:2px solid var(--border);">' + Math.round(row.nuo) + '</td>' +
       '<td>' + Math.round(row.iki) + '</td>' +
       '<td><b>' + Math.round(row.delta) + '</b></td>' +
-      '<td>' + row.heatKwh.toFixed(2) + '</td>' +
-      '<td><b>' + visoKwh.toFixed(2) + '</b></td>' +
-      '<td><b>' + visoEur.toFixed(2) + '</b></td>' +
+      '<td>' + Math.round(row.heatKwh) + '</td>' +
+      '<td style="border-left:2px solid var(--border);">' + kvEur.toFixed(2) + '</td>' +
+      '<td>' + heatEur.toFixed(2) + '</td>' +
+      '<td><b>' + sumaEur.toFixed(2) + '</b></td>' +
       '</tr>';
-
-    xlsxData.push([aptLbl, tenant, row.kvM3, row.kvKwh, +(row.kvKwh * price).toFixed(2),
-      Math.round(row.nuo), Math.round(row.iki), Math.round(row.delta),
-      +row.heatKwh.toFixed(2), +visoKwh.toFixed(2), +visoEur.toFixed(2)]);
   });
 
   var bnoStyle = bnoNeg ? ' style="background:#fee2e2;color:#991b1b;"' : ' style="background:#fef3c7;color:#92400e;"';
+  var visoSuma = totAptEur + (bnoNeg ? 0 : bnoEur);
   html += '</tbody><tfoot>' +
     '<tr' + bnoStyle + '>' +
       '<td colspan="8" style="font-weight:700;">BNO patalpų šildymas</td>' +
-      '<td>' + bnoKwh.toFixed(2) + '</td>' +
-      '<td>' + bnoKwh.toFixed(2) + '</td>' +
+      '<td style="border-left:2px solid var(--border);">—</td>' +
+      '<td>' + bnoEur.toFixed(2) + '</td>' +
       '<td style="font-weight:700;">' + bnoEur.toFixed(2) + '</td>' +
     '</tr>' +
     '<tr style="background:#111827;color:#fff;">' +
-      '<td colspan="10" style="font-weight:700;">Viso</td>' +
-      '<td style="font-weight:700;">' + (totAptEur + (bnoNeg ? 0 : bnoEur)).toFixed(2) + '</td>' +
+      '<td colspan="10" style="font-weight:700;">Viso suma už elektrą</td>' +
+      '<td style="font-weight:700;">' + visoSuma.toFixed(2) + ' EUR</td>' +
     '</tr>' +
     '</tfoot></table></div>';
-
-  xlsxData.push(['BNO patalpų šildymas','','','','','','','',Math.round(bnoKwh),Math.round(bnoKwh),+bnoEur.toFixed(2)]);
 
   var addrSel  = document.getElementById('calc-addr');
   var addrName = addrSel ? addrSel.options[addrSel.selectedIndex].text : '';
 
+  /* store for combined 2+2A export */
+  calcAllResults[addrName] = { rows: rows, bnoKwh: bnoKwh, addrName: addrName, month: month, price: price };
+  var hasTwo = Object.keys(calcAllResults).length >= 2;
+  var exportAllBtn = hasTwo
+    ? '<button class="gen-btn" style="margin:10px 4px 16px;background:#059669;" onclick="exportAllXlsx()">&#x1F4CA; Export 2+2A Excel</button>'
+    : '';
+
   html += '<button class="gen-btn" style="margin:10px 4px 16px 0;" onclick="exportCalcXlsx()">&#x1F4CA; Excel</button>' +
-          '<button class="gen-btn" style="margin:10px 0 16px;background:#374151;" onclick="exportCalcCsv()">&#x1F4BE; CSV</button>';
+          '<button class="gen-btn" style="margin:10px 4px 16px;background:#374151;" onclick="exportCalcCsv()">&#x1F4BE; CSV</button>' +
+          exportAllBtn;
 
   resDiv.innerHTML  = html;
-  resDiv._xlsxData  = xlsxData;
   resDiv._month     = month;
   resDiv._price     = price;
   resDiv._addrName  = addrName;
@@ -1650,44 +1653,54 @@ function exportCalcXlsx() {
   var DATA_START_ROW = 6; /* rows 1-4 = header, row 5 = col headers */
   var xn = function(v) { return String(v).replace('.', ','); }; /* decimal dot → comma */
 
-  var tbl = '<table border="1" style="border-collapse:collapse;">';
-  tbl += '<tr><td><b>Adresas</b></td><td colspan="10">' + addrName + '</td></tr>';
-  tbl += '<tr><td><b>Mėnuo</b></td><td colspan="10">' + month + '</td></tr>';
-  tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + xn(price) + '</td><td colspan="9"></td></tr>';
-  tbl += '<tr><td colspan="11"></td></tr>';
-  tbl += '<tr>' +
-    '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>K.V. kWh</th><th>K.V. EUR</th>' +
-    '<th>Šild. NUO</th><th>Šild. IKI</th><th>Šild. Δ</th><th>Šild. kWh</th><th>Viso kWh</th><th>Viso EUR</th>' +
-    '</tr>';
-
-  rows.forEach(function(row, idx) {
-    var r      = DATA_START_ROW + idx;
-    var aptLbl = String(row.apt.apt_label || row.apt.number || row.apt.id);
-    var kvKwh  = Math.round(row.kvKwh);
-    var visoKwh = Math.round(row.kvKwh + row.heatKwh);
+  /* Columns: A=Butas B=Abonentas C=K.V.m³ D=K.V.kWh E=Šild.NUO F=Šild.IKI G=Šild.Δ H=Šild.kWh I=EUR K.V. J=EUR Šild. K=Suma EUR */
+  var buildSection = function(sRows, sBnoKwh, sAddr, offset) {
+    var tbl = '';
+    tbl += '<tr><td><b>Adresas</b></td><td colspan="10">' + sAddr + '</td></tr>';
+    tbl += '<tr><td><b>Mėnuo</b></td><td colspan="10">' + month + '</td></tr>';
+    tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + xn(price) + '</td><td colspan="9"></td></tr>';
+    tbl += '<tr><td colspan="11"></td></tr>';
     tbl += '<tr>' +
-      '<td>' + aptLbl + '</td>' +
-      '<td>' + (row.apt.tenant_name || '') + '</td>' +
-      '<td>' + xn(row.kvM3.toFixed(3)) + '</td>' +
-      '<td>' + kvKwh + '</td>' +
-      '<td>=D' + r + '*$B$3</td>' +
-      '<td>' + Math.round(row.nuo) + '</td>' +
-      '<td>' + Math.round(row.iki) + '</td>' +
-      '<td>' + Math.round(row.delta) + '</td>' +
-      '<td>' + Math.round(row.heatKwh) + '</td>' +
-      '<td>' + visoKwh + '</td>' +
-      '<td>=J' + r + '*$B$3</td>' +
+      '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>K.V. kWh</th>' +
+      '<th>Šild. NUO</th><th>Šild. IKI</th><th>Šild. Δ</th><th>Šild. kWh</th>' +
+      '<th>EUR už K.V.</th><th>EUR už Šild.</th><th>Suma EUR</th>' +
       '</tr>';
-  });
 
-  var bnoR = DATA_START_ROW + rows.length;
-  tbl += '<tr>' +
-    '<td colspan="8"><b>BNO patalpų šildymas</b></td>' +
-    '<td>' + Math.round(bnoKwh) + '</td>' +
-    '<td>' + Math.round(bnoKwh) + '</td>' +
-    '<td>=J' + bnoR + '*$B$3</td>' +
-    '</tr>';
+    var dataR = offset + DATA_START_ROW - 1;
+    sRows.forEach(function(row) {
+      dataR++;
+      var aptLbl = String(row.apt.apt_label || row.apt.number || row.apt.id);
+      tbl += '<tr>' +
+        '<td>' + aptLbl + '</td>' +
+        '<td>' + (row.apt.tenant_name || '') + '</td>' +
+        '<td>' + xn(row.kvM3.toFixed(3)) + '</td>' +
+        '<td>' + Math.round(row.kvKwh) + '</td>' +
+        '<td>' + Math.round(row.nuo) + '</td>' +
+        '<td>' + Math.round(row.iki) + '</td>' +
+        '<td>' + Math.round(row.delta) + '</td>' +
+        '<td>' + Math.round(row.heatKwh) + '</td>' +
+        '<td>=D' + dataR + '*$B$3</td>' +
+        '<td>=H' + dataR + '*$B$3</td>' +
+        '<td>=I' + dataR + '+J' + dataR + '</td>' +
+        '</tr>';
+    });
 
+    var bnoR = dataR + 1;
+    tbl += '<tr>' +
+      '<td colspan="8"><b>BNO patalpų šildymas</b></td>' +
+      '<td>—</td>' +
+      '<td>=H' + bnoR + '*$B$3</td>' +
+      '<td>=J' + bnoR + '</td>' +
+      '</tr>';
+    tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
+      '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';
+    tbl += '<tr><td colspan="11"></td></tr>';
+    return { tbl: tbl, nextOffset: bnoR + 2 };
+  };
+
+  var tbl = '<table border="1" style="border-collapse:collapse;">';
+  var res = buildSection(rows, bnoKwh, addrName, 0);
+  tbl += res.tbl;
   tbl += '</table>';
 
   var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office"' +
@@ -1708,8 +1721,79 @@ function exportCalcXlsx() {
 
 function exportCalcCsv() {
   var resDiv = document.getElementById('calc-results');
-  if (!resDiv || !resDiv._xlsxData) return;
-  exportCsv(resDiv._xlsxData, 'elektra_' + resDiv._month);
+  if (!resDiv || !resDiv._rows) return;
+  /* build simple CSV from current results */
+  var price = resDiv._price || 0;
+  var data = [['Butas','Abonentas','K.V. m3','K.V. kWh','Sild. NUO','Sild. IKI','Sild. Delta','Sild. kWh','EUR uz KV','EUR uz Sild','Suma EUR']];
+  (resDiv._rows || []).forEach(function(row) {
+    var aptLbl = String(row.apt.apt_label || row.apt.number || row.apt.id);
+    data.push([aptLbl, row.apt.tenant_name||'', row.kvM3.toFixed(3), Math.round(row.kvKwh),
+      Math.round(row.nuo), Math.round(row.iki), Math.round(row.delta), Math.round(row.heatKwh),
+      +(row.kvKwh*price).toFixed(2), +(row.heatKwh*price).toFixed(2), +((row.kvKwh+row.heatKwh)*price).toFixed(2)]);
+  });
+  exportCsv(data, 'elektra_' + resDiv._month);
+}
+
+function exportAllXlsx() {
+  var keys = Object.keys(calcAllResults);
+  if (!keys.length) { toast('Pirmiausia skaičiuokite abi adresus', 'err'); return; }
+  var first = calcAllResults[keys[0]];
+  var price = first.price;
+  var month = first.month;
+  var xn = function(v) { return String(v).replace('.', ','); };
+  var DATA_START_ROW = 6;
+
+  var buildSection = function(res, offset) {
+    var tbl = '';
+    tbl += '<tr><td><b>Adresas</b></td><td colspan="10">' + res.addrName + '</td></tr>';
+    tbl += '<tr><td><b>Mėnuo</b></td><td colspan="10">' + res.month + '</td></tr>';
+    tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + xn(res.price) + '</td><td colspan="9"></td></tr>';
+    tbl += '<tr><td colspan="11"></td></tr>';
+    tbl += '<tr><th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>K.V. kWh</th>' +
+      '<th>Šild. NUO</th><th>Šild. IKI</th><th>Šild. Δ</th><th>Šild. kWh</th>' +
+      '<th>EUR už K.V.</th><th>EUR už Šild.</th><th>Suma EUR</th></tr>';
+    var dataR = offset + DATA_START_ROW - 1;
+    res.rows.forEach(function(row) {
+      dataR++;
+      var aptLbl = String(row.apt.apt_label || row.apt.number || row.apt.id);
+      var priceCell = '$B$' + (offset + 3);
+      tbl += '<tr>' +
+        '<td>' + aptLbl + '</td><td>' + (row.apt.tenant_name||'') + '</td>' +
+        '<td>' + xn(row.kvM3.toFixed(3)) + '</td><td>' + Math.round(row.kvKwh) + '</td>' +
+        '<td>' + Math.round(row.nuo) + '</td><td>' + Math.round(row.iki) + '</td>' +
+        '<td>' + Math.round(row.delta) + '</td><td>' + Math.round(row.heatKwh) + '</td>' +
+        '<td>=D' + dataR + '*' + priceCell + '</td>' +
+        '<td>=H' + dataR + '*' + priceCell + '</td>' +
+        '<td>=I' + dataR + '+J' + dataR + '</td>' +
+        '</tr>';
+    });
+    var bnoR = dataR + 1;
+    var priceCell = '$B$' + (offset + 3);
+    tbl += '<tr><td colspan="8"><b>BNO patalpų šildymas</b></td>' +
+      '<td>—</td><td>=H' + bnoR + '*' + priceCell + '</td><td>=J' + bnoR + '</td></tr>';
+    tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
+      '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';
+    tbl += '<tr><td colspan="11"></td></tr>';
+    return bnoR + 2;
+  };
+
+  var tbl = '<table border="1" style="border-collapse:collapse;">';
+  var nextOffset = 0;
+  keys.forEach(function(k) {
+    nextOffset = buildSection(calcAllResults[k], nextOffset);
+  });
+  tbl += '</table>';
+
+  var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office"' +
+    ' xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+    '<head><meta charset="UTF-8"></head><body>' + tbl + '</body></html>';
+  var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url; a.download = 'elektra_2_2A_' + month + '.xls';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('Excel 2+2A eksportuotas!', 'ok');
 }
 
 /* ── CSV EXPORT ───────────────────────────────────── */

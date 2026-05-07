@@ -1605,7 +1605,8 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
   var visoSuma = totAptEur + (bnoNeg ? 0 : bnoEur);
   html += '</tbody><tfoot>' +
     '<tr' + bnoStyle + '>' +
-      '<td colspan="8" style="font-weight:700;">BNO patalpų šildymas</td>' +
+      '<td colspan="7" style="font-weight:700;">BNO patalpų šildymas</td>' +
+      '<td>' + Math.round(bnoKwh) + '</td>' +
       '<td style="border-left:2px solid var(--border);">—</td>' +
       '<td>' + bnoEur.toFixed(2) + '</td>' +
       '<td style="font-weight:700;">' + bnoEur.toFixed(2) + '</td>' +
@@ -1687,7 +1688,8 @@ function exportCalcXlsx() {
 
     var bnoR = dataR + 1;
     tbl += '<tr>' +
-      '<td colspan="8"><b>BNO patalpų šildymas</b></td>' +
+      '<td colspan="7"><b>BNO patalpų šildymas</b></td>' +
+      '<td>' + Math.round(sBnoKwh) + '</td>' +
       '<td>—</td>' +
       '<td>=H' + bnoR + '*$B$3</td>' +
       '<td>=J' + bnoR + '</td>' +
@@ -1769,7 +1771,8 @@ function exportAllXlsx() {
     });
     var bnoR = dataR + 1;
     var priceCell = '$B$' + (offset + 3);
-    tbl += '<tr><td colspan="8"><b>BNO patalpų šildymas</b></td>' +
+    tbl += '<tr><td colspan="7"><b>BNO patalpų šildymas</b></td>' +
+      '<td>' + Math.round(res.bnoKwh) + '</td>' +
       '<td>—</td><td>=H' + bnoR + '*' + priceCell + '</td><td>=J' + bnoR + '</td></tr>';
     tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
       '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';

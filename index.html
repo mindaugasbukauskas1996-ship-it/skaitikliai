@@ -1688,7 +1688,7 @@ function exportCalcXlsx() {
 
     var bnoR = dataR + 1;
     tbl += '<tr>' +
-      '<td colspan="7"><b>BNO patalpų šildymas</b></td>' +
+      '<td colspan="7"><b>Nepaskirstytas šildymas su BNO elektra</b></td>' +
       '<td>' + Math.round(sBnoKwh) + '</td>' +
       '<td>—</td>' +
       '<td>=H' + bnoR + '*$B$3</td>' +
@@ -1771,7 +1771,7 @@ function exportAllXlsx() {
     });
     var bnoR = dataR + 1;
     var priceCell = '$B$' + (offset + 3);
-    tbl += '<tr><td colspan="7"><b>BNO patalpų šildymas</b></td>' +
+    tbl += '<tr><td colspan="7"><b>Nepaskirstytas šildymas su BNO elektra</b></td>' +
       '<td>' + Math.round(res.bnoKwh) + '</td>' +
       '<td>—</td><td>=H' + bnoR + '*' + priceCell + '</td><td>=J' + bnoR + '</td></tr>';
     tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +

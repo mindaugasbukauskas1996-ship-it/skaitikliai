@@ -1603,6 +1603,7 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
 
   var bnoStyle = bnoNeg ? ' style="background:#fee2e2;color:#991b1b;"' : ' style="background:#fef3c7;color:#92400e;"';
   var visoSuma = totAptEur + (bnoNeg ? 0 : bnoEur);
+  var visoKwh  = rows.reduce(function(s,r){return s+r.kvKwh+r.heatKwh;},0) + bnoKwh;
   html += '</tbody><tfoot>' +
     '<tr' + bnoStyle + '>' +
       '<td colspan="7" style="font-weight:700;">BNO patalpų šildymas</td>' +
@@ -1614,6 +1615,11 @@ function showCalcResults(resDiv, totalKwh, price, kwhPerM3, month) {
     '<tr style="background:#111827;color:#fff;">' +
       '<td colspan="10" style="font-weight:700;">Viso suma už elektrą</td>' +
       '<td style="font-weight:700;">' + visoSuma.toFixed(2) + ' EUR</td>' +
+    '</tr>' +
+    '<tr style="background:#1e3a5f;color:#fff;">' +
+      '<td colspan="7" style="font-weight:700;">Viso kWh sunaudota</td>' +
+      '<td style="font-weight:700;">' + Math.round(visoKwh) + ' kWh</td>' +
+      '<td colspan="3"></td>' +
     '</tr>' +
     '</tfoot></table></div>';
 
@@ -1696,8 +1702,12 @@ function exportCalcXlsx() {
       '</tr>';
     tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
       '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';
+    var visoR = bnoR + 1;
+    tbl += '<tr><td colspan="7"><b>Viso kWh sunaudota</b></td>' +
+      '<td>=SUM(D' + (offset + DATA_START_ROW) + ':D' + bnoR + ')+SUM(H' + (offset + DATA_START_ROW) + ':H' + bnoR + ')</td>' +
+      '<td colspan="3"></td></tr>';
     tbl += '<tr><td colspan="11"></td></tr>';
-    return { tbl: tbl, nextOffset: bnoR + 2 };
+    return { tbl: tbl, nextOffset: visoR + 2 };
   };
 
   var tbl = '<table border="1" style="border-collapse:collapse;">';
@@ -1745,17 +1755,17 @@ function exportAllXlsx() {
   var esc = function(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   };
-  /* SpreadsheetML cell helpers */
-  var cs = function(v, merge) { /* string cell */
+  /* SpreadsheetML cell helpers — ss:StyleID="b" adds border only to data cells */
+  var cs = function(v, merge) {
     var ma = merge ? ' ss:MergeAcross="' + (merge - 1) + '"' : '';
-    return '<Cell' + ma + '><Data ss:Type="String">' + esc(String(v)) + '</Data></Cell>';
+    return '<Cell' + ma + ' ss:StyleID="b"><Data ss:Type="String">' + esc(String(v)) + '</Data></Cell>';
   };
-  var cn = function(v) { /* number cell */
-    return '<Cell><Data ss:Type="Number">' + v + '</Data></Cell>';
+  var cn = function(v) {
+    return '<Cell ss:StyleID="b"><Data ss:Type="Number">' + v + '</Data></Cell>';
   };
-  var cf = function(formula, merge) { /* formula cell — R1C1 notation */
+  var cf = function(formula, merge) {
     var ma = merge ? ' ss:MergeAcross="' + (merge - 1) + '"' : '';
-    return '<Cell' + ma + ' ss:Formula="' + formula + '"><Data ss:Type="Number">0</Data></Cell>';
+    return '<Cell' + ma + ' ss:StyleID="b" ss:Formula="' + formula + '"><Data ss:Type="Number">0</Data></Cell>';
   };
 
   var buildWorksheet = function(res) {
@@ -1799,10 +1809,15 @@ function exportAllXlsx() {
       cf('=RC8*R3C2') +   /* EUR Šild. = H_bno * price */
       cf('=RC[-1]') +     /* Suma = J of same row */
       '</Row>';
-    /* Viso row */
+    /* Viso suma row */
     xml += '<Row>' +
       cs('Viso suma už elektrą', 10) +
       cf('=SUM(R' + DATA_START_ROW + 'C11:R' + bnoR + 'C11)') +
+      '</Row>';
+    /* Viso kWh row — sum D+H columns (K.V.kWh + Šild.kWh) incl. BNO */
+    xml += '<Row>' +
+      cs('Viso kWh sunaudota', 7) +
+      cf('=SUM(R' + DATA_START_ROW + 'C4:R' + bnoR + 'C4)+SUM(R' + DATA_START_ROW + 'C8:R' + bnoR + 'C8)') +
       '</Row>';
     xml += '</Table>';
     return xml;
@@ -1814,7 +1829,7 @@ function exportAllXlsx() {
     ' xmlns:o="urn:schemas-microsoft-com:office:office"' +
     ' xmlns:x="urn:schemas-microsoft-com:office:excel"' +
     ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
-    '<Styles><Style ss:ID="Default" ss:Name="Normal">' +
+    '<Styles><Style ss:ID="b">' +
     '<Borders>' +
     '<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>' +
     '<Border ss:Position="Left"   ss:LineStyle="Continuous" ss:Weight="1"/>' +

@@ -1693,9 +1693,9 @@ function exportCalcXlsx() {
         '<td>' + Math.round(row.iki) + '</td>' +
         '<td>' + Math.round(row.delta) + '</td>' +
         '<td>' + Math.round(row.heatKwh) + '</td>' +
-        '<td>=D' + dataR + '*$B$3</td>' +
-        '<td>=H' + dataR + '*$B$3</td>' +
-        '<td>=I' + dataR + '+J' + dataR + '</td>' +
+        '<td>=ROUND(D' + dataR + '*$B$3,2)</td>' +
+        '<td>=ROUND(H' + dataR + '*$B$3,2)</td>' +
+        '<td>=ROUND(I' + dataR + '+J' + dataR + ',2)</td>' +
         '</tr>';
     });
 
@@ -1710,8 +1710,8 @@ function exportCalcXlsx() {
       '<td></td>' +   /* Šild. Δ */
       '<td>' + Math.round(sBnoKwh) + '</td>' +
       '<td>—</td>' +
-      '<td>=H' + bnoR + '*$B$3</td>' +
-      '<td>=H' + bnoR + '*$B$3</td>' +
+      '<td>=ROUND(H' + bnoR + '*$B$3,2)</td>' +
+      '<td>=ROUND(H' + bnoR + '*$B$3,2)</td>' +
       '</tr>';
     tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
       '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';
@@ -1720,7 +1720,28 @@ function exportCalcXlsx() {
       '<td>=SUM(D' + (offset + DATA_START_ROW) + ':D' + bnoR + ')+SUM(H' + (offset + DATA_START_ROW) + ':H' + bnoR + ')</td>' +
       '<td colspan="3"></td></tr>';
     tbl += '<tr><td colspan="11"></td></tr>';
-    return { tbl: tbl, nextOffset: visoR + 2 };
+    /* summary section */
+    var pc    = '$B$' + (offset + 3);
+    var dFrom = offset + DATA_START_ROW;
+    var dTo   = bnoR - 1;
+    var s1R   = bnoR + 5;
+    var s2R   = bnoR + 6;
+    var s3R   = bnoR + 7;
+    tbl += '<tr><td colspan="3"></td><td><b>kWh</b></td><td><b>Eur</b></td><td colspan="6"></td></tr>';
+    tbl += '<tr><td colspan="3">Viso sunaudota elektros butų šildymui:</td>' +
+      '<td>=SUM(H' + dFrom + ':H' + dTo + ')</td>' +
+      '<td>=ROUND(D' + s1R + '*' + pc + ',2)</td>' +
+      '<td colspan="6"></td></tr>';
+    tbl += '<tr><td colspan="3">Viso sunaudota elektros karštam vandeniui:</td>' +
+      '<td>=SUM(D' + dFrom + ':D' + dTo + ')</td>' +
+      '<td>=ROUND(D' + s2R + '*' + pc + ',2)</td>' +
+      '<td colspan="6"></td></tr>';
+    tbl += '<tr><td colspan="3">BNO su nepaskirstymu šildymu kwh:</td>' +
+      '<td>=$H$' + bnoR + '</td>' +
+      '<td>=ROUND(D' + s3R + '*' + pc + ',2)</td>' +
+      '<td colspan="6"></td></tr>';
+    tbl += '<tr><td colspan="11"></td></tr>';
+    return { tbl: tbl, nextOffset: s3R + 2 };
   };
 
   var tbl = '<table border="1" style="border-collapse:collapse;">';
@@ -1805,11 +1826,9 @@ function exportAllXlsx() {
         cn(Math.round(row.nuo)) + cn(Math.round(row.iki)) +
         cn(Math.round(row.delta)) + cn(Math.round(row.heatKwh)) +
         /* R1C1: same row col D(4) * absolute B3(R3C2) */
-        cf('=RC4*R3C2') +
-        /* R1C1: same row col H(8) * absolute B3(R3C2) */
-        cf('=RC8*R3C2') +
-        /* R1C1: same row col I(9) + same row col J(10) */
-        cf('=RC9+RC10') +
+        cf('=ROUND(RC4*R3C2,2)') +
+        cf('=ROUND(RC8*R3C2,2)') +
+        cf('=ROUND(RC9+RC10,2)') +
         '</Row>';
       r++;
     });
@@ -1825,8 +1844,8 @@ function exportAllXlsx() {
       cs('') +              /* G - Šild. Δ (empty) */
       cn(Math.round(res.bnoKwh)) + /* H - Šild. kWh */
       cs('—') +             /* I - EUR K.V. (n/a) */
-      cf('=RC8*R3C2') +     /* J - EUR Šild. */
-      cf('=RC[-1]') +       /* K - Suma = J (no water) */
+      cf('=ROUND(RC8*R3C2,2)') + /* J - EUR Šild. */
+      cf('=RC[-1]') +            /* K - Suma = J (no water) */
       '</Row>';
     /* Viso suma row */
     xml += '<Row>' +
@@ -1837,6 +1856,25 @@ function exportAllXlsx() {
     xml += '<Row>' +
       cs('Viso kWh sunaudota', 7) +
       cf('=SUM(R' + DATA_START_ROW + 'C4:R' + bnoR + 'C4)+SUM(R' + DATA_START_ROW + 'C8:R' + bnoR + 'C8)') +
+      '</Row>';
+    /* summary section */
+    var dTo = bnoR - 1; /* last apartment row (excludes BNO) */
+    xml += '<Row/>';
+    xml += '<Row>' + cs('', 3) + cs('kWh') + cs('Eur') + '</Row>';
+    xml += '<Row>' +
+      cs('Viso sunaudota elektros butų šildymui:', 3) +
+      cf('=SUM(R' + DATA_START_ROW + 'C8:R' + dTo + 'C8)') +  /* Šild.kWh sum */
+      cf('=ROUND(RC[-1]*R3C2,2)') +                             /* EUR */
+      '</Row>';
+    xml += '<Row>' +
+      cs('Viso sunaudota elektros karštam vandeniui:', 3) +
+      cf('=SUM(R' + DATA_START_ROW + 'C4:R' + dTo + 'C4)') +  /* K.V.kWh sum */
+      cf('=ROUND(RC[-1]*R3C2,2)') +
+      '</Row>';
+    xml += '<Row>' +
+      cs('BNO su nepaskirstymu šildymu kwh:', 3) +
+      cf('=R' + bnoR + 'C8') +     /* H of BNO row */
+      cf('=ROUND(RC[-1]*R3C2,2)') +
       '</Row>';
     xml += '</Table>';
     return xml;

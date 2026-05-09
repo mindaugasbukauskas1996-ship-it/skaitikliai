@@ -1,0 +1,43 @@
+{%- paginate collection.products by 12 -%}
+
+<div class="collection-header">
+  <div class="container">
+    <h1 class="collection-header__title">{{ collection.title }}</h1>
+    <p class="collection-header__count">{{ collection.products_count }} produktų</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="collection-filters-bar">
+    <span>{{ collection.products_count }} produktų</span>
+    <div class="collection-sort">
+      <select id="SortBy" onchange="window.location = this.value">
+        <option value="{{ collection.url }}?sort_by=manual"{% if collection.sort_by == 'manual' %} selected{% endif %}>Rekomenduojama</option>
+        <option value="{{ collection.url }}?sort_by=best-selling"{% if collection.sort_by == 'best-selling' %} selected{% endif %}>Populiariausi</option>
+        <option value="{{ collection.url }}?sort_by=price-ascending"{% if collection.sort_by == 'price-ascending' %} selected{% endif %}>Kaina: nuo mažiausios</option>
+        <option value="{{ collection.url }}?sort_by=price-descending"{% if collection.sort_by == 'price-descending' %} selected{% endif %}>Kaina: nuo didžiausios</option>
+        <option value="{{ collection.url }}?sort_by=created-descending"{% if collection.sort_by == 'created-descending' %} selected{% endif %}>Naujausios</option>
+      </select>
+    </div>
+  </div>
+
+  {%- if collection.products.size == 0 -%}
+    <div class="empty-state">
+      <div class="empty-state__icon">&#128722;</div>
+      <h2 class="empty-state__title">Kolekcijoje nėra produktų</h2>
+      <p class="empty-state__text">Šiuo metu čia nėra produktų.</p>
+      <a href="{{ routes.root_url }}" class="btn btn--primary">Grįžti į pradžią</a>
+    </div>
+  {%- else -%}
+    <div class="product-grid">
+      {%- for product in collection.products -%}
+        {% render 'product-card', product: product %}
+      {%- endfor -%}
+    </div>
+    {%- if paginate.pages > 1 -%}
+      <div class="text-center mt-8">{{ paginate | default_pagination }}</div>
+    {%- endif -%}
+  {%- endif -%}
+</div>
+
+{%- endpaginate -%}

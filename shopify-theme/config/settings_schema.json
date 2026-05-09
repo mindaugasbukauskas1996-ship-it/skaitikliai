@@ -1,0 +1,58 @@
+[
+  {
+    "name": "theme_info",
+    "theme_name": "LT Shop",
+    "theme_version": "1.0.0",
+    "theme_author": "Custom",
+    "theme_documentation_url": "",
+    "theme_support_url": ""
+  },
+  {
+    "name": "Spalvos",
+    "settings": [
+      {
+        "type": "color",
+        "id": "color_accent",
+        "label": "Akcentinė spalva",
+        "default": "#16a34a"
+      },
+      {
+        "type": "color",
+        "id": "color_header_bg",
+        "label": "Antraštės fonas",
+        "default": "#111827"
+      },
+      {
+        "type": "color",
+        "id": "color_body_bg",
+        "label": "Puslapio fonas",
+        "default": "#ffffff"
+      }
+    ]
+  },
+  {
+    "name": "Tipografija",
+    "settings": [
+      {
+        "type": "font_picker",
+        "id": "type_header_font",
+        "label": "Antraštės šriftas",
+        "default": "inter_n4"
+      },
+      {
+        "type": "font_picker",
+        "id": "type_body_font",
+        "label": "Teksto šriftas",
+        "default": "inter_n4"
+      }
+    ]
+  },
+  {
+    "name": "Socialiniai tinklai",
+    "settings": [
+      { "type": "text", "id": "social_facebook", "label": "Facebook URL" },
+      { "type": "text", "id": "social_instagram", "label": "Instagram URL" },
+      { "type": "text", "id": "social_linkedin", "label": "LinkedIn URL" }
+    ]
+  }
+]

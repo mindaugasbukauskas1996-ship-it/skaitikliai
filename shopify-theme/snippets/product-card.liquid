@@ -1,0 +1,24 @@
+<a href="{{ product.url }}" class="product-card">
+  <div class="product-card__image">
+    {%- if product.featured_image -%}
+      {{ product.featured_image | image_tag: sizes: '300px', loading: 'lazy', alt: product.title }}
+    {%- else -%}
+      <div class="product-card__image-placeholder">&#128722;</div>
+    {%- endif -%}
+    {%- if product.compare_at_price > product.price -%}
+      <div class="product-card__badge">Nuolaida</div>
+    {%- endif -%}
+  </div>
+  <div class="product-card__body">
+    {%- if product.vendor != blank -%}
+      <div class="product-card__vendor">{{ product.vendor }}</div>
+    {%- endif -%}
+    <div class="product-card__title">{{ product.title }}</div>
+    <div class="product-card__price">
+      {%- if product.compare_at_price > product.price -%}
+        <span class="product-card__compare-price">{{ product.compare_at_price | money }}</span>
+      {%- endif -%}
+      {{ product.price | money }}
+    </div>
+  </div>
+</a>

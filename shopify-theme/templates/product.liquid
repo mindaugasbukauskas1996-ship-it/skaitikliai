@@ -1,0 +1,102 @@
+{%- assign current_variant = product.selected_or_first_available_variant -%}
+
+<div class="container">
+  <nav class="breadcrumbs">
+    <a href="{{ routes.root_url }}">Pradžia</a>
+    <span class="sep">/</span>
+    {%- if collection -%}
+      <a href="{{ collection.url }}">{{ collection.title }}</a>
+      <span class="sep">/</span>
+    {%- endif -%}
+    <span>{{ product.title }}</span>
+  </nav>
+</div>
+
+<div class="product-page">
+  <div class="container">
+    <div class="product-page__inner">
+
+      <div class="product-gallery">
+        <div class="product-gallery__main">
+          {%- if product.featured_image -%}
+            <img src="{{ product.featured_image | img_url: '800x' }}" alt="{{ product.title }}" id="MainProductImage">
+          {%- else -%}
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:5rem;">&#128722;</div>
+          {%- endif -%}
+        </div>
+        {%- if product.images.size > 1 -%}
+          <div class="product-gallery__thumbs">
+            {%- for image in product.images -%}
+              <div class="product-gallery__thumb{% if forloop.first %} is-active{% endif %}">
+                <img src="{{ image | img_url: '100x' }}" alt="{{ product.title }}" loading="lazy">
+              </div>
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </div>
+
+      <div class="product-info">
+        {%- if product.vendor != blank -%}
+          <div class="product-info__vendor">{{ product.vendor }}</div>
+        {%- endif -%}
+        <h1 class="product-info__title">{{ product.title }}</h1>
+
+        <div class="product-info__price">
+          <span class="product-info__price-current" id="ProductPrice">{{ current_variant.price | money }}</span>
+          {%- if current_variant.compare_at_price > current_variant.price -%}
+            <span class="product-info__price-compare" id="ComparePrice">{{ current_variant.compare_at_price | money }}</span>
+          {%- endif -%}
+        </div>
+
+        {%- if product.description != blank -%}
+          <div class="product-info__description">{{ product.description }}</div>
+        {%- endif -%}
+
+        <form action="{{ routes.cart_add_url }}" method="post" class="product-form">
+          {%- unless product.has_only_default_variant -%}
+            {%- for option in product.options_with_values -%}
+              <div class="product-info__variants">
+                <label>{{ option.name }}</label>
+                <div class="variant-options">
+                  {%- for value in option.values -%}
+                    <button type="button"
+                      class="variant-option{% if option.selected_value == value %} is-selected{% endif %}"
+                      data-option="{{ option.position }}"
+                      data-value="{{ value }}">
+                      {{ value }}
+                    </button>
+                  {%- endfor -%}
+                </div>
+              </div>
+            {%- endfor -%}
+          {%- endunless -%}
+
+          <input type="hidden" name="id" value="{{ current_variant.id }}">
+
+          <div class="product-info__quantity">
+            <label for="Quantity">Kiekis:</label>
+            <div class="quantity-selector">
+              <button type="button" class="qty-minus">&#8722;</button>
+              <input type="number" id="Quantity" name="quantity" value="1" min="1">
+              <button type="button" class="qty-plus">+</button>
+            </div>
+          </div>
+
+          <div class="product-info__actions">
+            <button type="submit"
+              class="btn btn--primary btn--full product-info__add-to-cart"
+              {%- unless current_variant.available -%} disabled{%- endunless -%}>
+              {%- if current_variant.available -%}
+                Į kreplšelį
+              {%- else -%}
+                Išparduota
+              {%- endif -%}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="ProductJSON">{{ product | json }}</script>

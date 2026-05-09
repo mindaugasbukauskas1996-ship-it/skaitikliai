@@ -1,0 +1,58 @@
+<header class="site-header">
+  <div class="container">
+    <div class="site-header__inner">
+      <a href="{{ routes.root_url }}" class="site-header__logo">
+        {%- if section.settings.logo != blank -%}
+          {{ section.settings.logo | image_tag: width: 150, alt: shop.name }}
+        {%- else -%}
+          <span class="site-header__logo-text">{{ shop.name }}</span>
+        {%- endif -%}
+      </a>
+
+      <nav class="site-nav" id="SiteNav">
+        <ul class="site-nav__list">
+          {%- for link in linklists[section.settings.menu].links -%}
+            <li class="site-nav__item">
+              <a href="{{ link.url }}" class="site-nav__link{%- if link.active %} site-nav__link--active{%- endif -%}">
+                {{ link.title }}
+              </a>
+            </li>
+          {%- endfor -%}
+        </ul>
+      </nav>
+
+      <div class="site-header__actions">
+        <button class="cart-toggle" id="CartToggle" aria-label="{{ 'cart.open' | t }}">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 01-8 0"/>
+          </svg>
+          <span class="cart-count{%- if cart.item_count > 0 %} has-items{%- endif -%}" id="CartCount">{{ cart.item_count }}</span>
+        </button>
+        <button class="menu-toggle" id="MenuToggle" aria-label="{{ 'nav.menu' | t }}">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+{% schema %}
+{
+  "name": "Antraštė",
+  "settings": [
+    {
+      "type": "image_picker",
+      "id": "logo",
+      "label": "Logotipas"
+    },
+    {
+      "type": "link_list",
+      "id": "menu",
+      "label": "Navigacijos meniu",
+      "default": "main-menu"
+    }
+  ]
+}
+{% endschema %}

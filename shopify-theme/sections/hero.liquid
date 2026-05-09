@@ -1,0 +1,35 @@
+<div class="hero"
+  style="{%- if section.settings.bg_image != blank -%}background-image:linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)),url('{{ section.settings.bg_image | img_url: '1920x' }}');background-size:cover;background-position:center;{%- endif -%}">
+  <div class="container">
+    <div class="hero__content">
+      <h1 class="hero__title">{{ section.settings.title }}</h1>
+      {%- if section.settings.subtitle != blank -%}
+        <p class="hero__subtitle">{{ section.settings.subtitle }}</p>
+      {%- endif -%}
+      <div class="hero__actions">
+        {%- if section.settings.button_label != blank -%}
+          <a href="{{ section.settings.button_link }}" class="btn btn--primary">{{ section.settings.button_label }}</a>
+        {%- endif -%}
+        {%- if section.settings.button2_label != blank -%}
+          <a href="{{ section.settings.button2_link }}" class="btn btn--outline">{{ section.settings.button2_label }}</a>
+        {%- endif -%}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Pagrindinis banner",
+  "settings": [
+    { "type": "text", "id": "title", "label": "Pavadinimas", "default": "Sveiki atvykę į mūsų parduotuvę" },
+    { "type": "textarea", "id": "subtitle", "label": "Subtitras", "default": "Kokybiški produktai už prieinamą kainą" },
+    { "type": "text", "id": "button_label", "label": "Mygtuko tekstas", "default": "Apsipirkti dabar" },
+    { "type": "url", "id": "button_link", "label": "Mygtuko nuoroda" },
+    { "type": "text", "id": "button2_label", "label": "2 mygtuko tekstas" },
+    { "type": "url", "id": "button2_link", "label": "2 mygtuko nuoroda" },
+    { "type": "image_picker", "id": "bg_image", "label": "Fono paveiksliukas" }
+  ],
+  "presets": [{ "name": "Pagrindinis banner" }]
+}
+{% endschema %}

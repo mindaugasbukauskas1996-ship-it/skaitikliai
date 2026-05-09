@@ -1,0 +1,31 @@
+{
+  "general": {
+    "meta": {
+      "page": "Puslapis {{ page }}"
+    }
+  },
+  "nav": {
+    "menu": "Meniu"
+  },
+  "cart": {
+    "title": "Krepšelis",
+    "subtotal": "Tarpinė suma",
+    "checkout": "Apmoėti",
+    "close": "Uždaryti",
+    "open": "Atidaryti krepšelį",
+    "empty": "Krepšelis tuščias",
+    "items_count": {
+      "one": "{{ count }} prekė",
+      "other": "{{ count }} prekės"
+    }
+  },
+  "products": {
+    "add_to_cart": "Į krepšelį",
+    "sold_out": "Išparduota",
+    "unavailable": "Neprieinamas"
+  },
+  "pagination": {
+    "previous": "Ankstesnis",
+    "next": "Kitas"
+  }
+}

@@ -1,0 +1,58 @@
+<div class="cart-page">
+  <div class="container">
+    <h1 class="cart-page__title">{{ 'cart.title' | t }}</h1>
+
+    {%- if cart.item_count == 0 -%}
+      <div class="empty-state">
+        <div class="empty-state__icon">&#128722;</div>
+        <h2 class="empty-state__title">Jūsų kreplšelis tuščias</h2>
+        <p class="empty-state__text">Pridėkite produktų ir pradėkite apsipirkimą.</p>
+        <a href="{{ routes.collections_url }}/all" class="btn btn--primary">Apsipirkti</a>
+      </div>
+    {%- else -%}
+      <form action="{{ routes.cart_url }}" method="post">
+        <div class="cart-items">
+          {%- for item in cart.items -%}
+            <div class="cart-item">
+              <div class="cart-item__image">
+                {%- if item.image -%}
+                  <img src="{{ item.image | img_url: '150x' }}" alt="{{ item.title }}" loading="lazy">
+                {%- endif -%}
+              </div>
+              <div class="cart-item__details">
+                <div class="cart-item__title">{{ item.product.title }}</div>
+                {%- unless item.variant.title == 'Default Title' -%}
+                  <div class="cart-item__variant">{{ item.variant.title }}</div>
+                {%- endunless -%}
+                <div class="quantity-selector" style="margin-top:10px;display:inline-flex;">
+                  <button type="button" class="qty-minus">&#8722;</button>
+                  <input type="number" name="updates[]" value="{{ item.quantity }}" min="0">
+                  <button type="button" class="qty-plus">+</button>
+                </div>
+                <a href="{{ item.url_to_remove }}" class="cart-item__remove">Pašalinti</a>
+              </div>
+              <div class="cart-item__price">{{ item.final_line_price | money }}</div>
+            </div>
+          {%- endfor -%}
+        </div>
+
+        <div class="cart-summary">
+          <div class="cart-summary__row">
+            <span>Tarpinė suma:</span>
+            <span>{{ cart.total_price | money }}</span>
+          </div>
+          <p style="font-size:0.8125rem;color:var(--color-muted);margin-bottom:12px;">Pristatymas skaičiuojamas apmokant</p>
+          <div class="cart-summary__row cart-summary__total">
+            <span>Viso:</span>
+            <span>{{ cart.total_price | money }}</span>
+          </div>
+          <div class="cart-summary__actions">
+            <button type="submit" name="checkout" class="btn btn--primary btn--full">Apmoėti</button>
+            <button type="submit" name="update" class="btn btn--outline btn--dark btn--full">Atnaujinti kreplšelį</button>
+            <a href="{{ routes.collections_url }}/all" class="btn btn--outline btn--dark btn--full">Tęsti apsipirkimą</a>
+          </div>
+        </div>
+      </form>
+    {%- endif -%}
+  </div>
+</div>

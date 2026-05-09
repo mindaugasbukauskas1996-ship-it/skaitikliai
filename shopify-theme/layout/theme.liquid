@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="{{ request.locale.iso_code }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>
+    {{ page_title }}
+    {%- if current_page != 1 %} &ndash; {{ 'general.meta.page' | t: page: current_page }}{% endif -%}
+    {%- unless page_title contains shop.name %} &ndash; {{ shop.name }}{% endunless -%}
+  </title>
+  {%- if page_description -%}
+    <meta name="description" content="{{ page_description | escape }}">
+  {%- endif -%}
+  <link rel="canonical" href="{{ canonical_url }}">
+  {{ content_for_header }}
+  {{ 'theme.css' | asset_url | stylesheet_tag }}
+</head>
+<body class="template-{{ template | split: '.' | first }}">
+  {% section 'header' %}
+  <main id="MainContent" class="main-content" tabindex="-1">
+    {{ content_for_layout }}
+  </main>
+  {% section 'footer' %}
+
+  <div id="cart-drawer" class="cart-drawer">
+    <div class="cart-drawer__overlay"></div>
+    <div class="cart-drawer__inner">
+      <div class="cart-drawer__header">
+        <h2 class="cart-drawer__title">{{ 'cart.title' | t }}</h2>
+        <button class="cart-drawer__close" aria-label="{{ 'cart.close' | t }}">&#x2715;</button>
+      </div>
+      <div class="cart-drawer__items" id="cart-items"></div>
+      <div class="cart-drawer__footer">
+        <div class="cart-drawer__subtotal">
+          <span>{{ 'cart.subtotal' | t }}:</span>
+          <span id="cart-subtotal">{{ cart.total_price | money }}</span>
+        </div>
+        <a href="{{ routes.cart_url }}" class="btn btn--primary btn--full">{{ 'cart.checkout' | t }}</a>
+      </div>
+    </div>
+  </div>
+
+  {{ 'theme.js' | asset_url | script_tag }}
+</body>
+</html>

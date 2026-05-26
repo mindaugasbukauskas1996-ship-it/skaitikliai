@@ -443,8 +443,9 @@ function chooseRole(role) {
 /* ── ADDRESS LIST ─────────────────────────────────── */
 function addrMeta(name) {
   var n = (name || '').toLowerCase();
-  /* electricity: Žemaitės g. pattern */
-  if (n.indexOf('žemait') >= 0 || n.indexOf('zemait') >= 0) {
+  /* electricity: Žemaitės g. and Basanavičiaus g. patterns */
+  if (n.indexOf('žemait') >= 0 || n.indexOf('zemait') >= 0 ||
+      n.indexOf('basanav') >= 0) {
     return { type: 'elec', sort: 0, icon: '⚡', sub: 'Elektros skaitikliai' };
   }
   /* water/hot-water: Karališkių pattern */

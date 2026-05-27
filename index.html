@@ -971,9 +971,10 @@ function saveApt(aptId) {
     var nEl = document.getElementById('nuo-' + m.id);
     var iEl = document.getElementById('iki-' + m.id);
     var nuo = nEl ? parseFloat(nEl.value) || 0 : 0;
-    var iki = iEl ? parseFloat(iEl.value) : NaN;
-    if (isNaN(iki)) { toast('Įveskite visus parodymus!', 'er'); ok = false; return; }
-    if (iki < nuo)  { toast('IKI negali būti mažesnis už NUO!', 'er'); ok = false; return; }
+    var ikiRaw = iEl ? iEl.value.trim() : '';
+    var iki = ikiRaw !== '' ? parseFloat(ikiRaw) : null;
+    if (iki !== null && isNaN(iki)) { toast('IKI reikšmė neteisinga!', 'er'); ok = false; return; }
+    if (iki !== null && iki < nuo)  { toast('IKI negali būti mažesnis už NUO!', 'er'); ok = false; return; }
     rows.push({ meter_id: m.id, period: activePeriod, value_from: nuo, value_to: iki, note: note });
   });
   if (!ok) return;
@@ -987,10 +988,11 @@ function saveApt(aptId) {
     chain = chain.then(function() {
       var ex = curR[ins.meter_id];
       if (ex) {
-        return sbPatch('readings?id=eq.' + ex.id, { value_to: ins.value_to, note: ins.note })
+        return sbPatch('readings?id=eq.' + ex.id, { value_from: ins.value_from, value_to: ins.value_to, note: ins.note })
           .then(function() {
-            ex.value_to = ins.value_to;
-            ex.note     = ins.note;
+            ex.value_from = ins.value_from;
+            ex.value_to   = ins.value_to;
+            ex.note       = ins.note;
           });
       } else {
         return sbPost('readings', ins).then(function(res) {
@@ -1084,6 +1086,8 @@ function editApt(aptId) {
   meterList.filter(function(m) { return m.apartment_id === aptId; }).forEach(function(m) {
     var iEl = document.getElementById('iki-' + m.id);
     if (iEl) iEl.disabled = false;
+    var nEl = document.getElementById('nuo-' + m.id);
+    if (nEl) nEl.readOnly = false;
   });
 
   var noteEl = document.getElementById('note-' + aptId);

@@ -764,9 +764,11 @@ function buildElecBody(body, apt, aptMs, isSaved) {
     if (m.meter_types.code === 'electricity_night') nightM = m;
   });
 
-  /* Bendras parodymas */
-  var pDay   = dayM   ? prevR[dayM.id]   : undefined;
-  var pNight = nightM ? prevR[nightM.id] : undefined;
+  /* Bendras parodymas — show current period IKI sum if saved, else prev IKI */
+  var cDayR   = dayM   ? curR[dayM.id]   : undefined;
+  var cNightR = nightM ? curR[nightM.id] : undefined;
+  var pDay   = dayM   ? (cDayR   && cDayR.value_to   != null ? cDayR.value_to   : prevR[dayM.id])   : undefined;
+  var pNight = nightM ? (cNightR && cNightR.value_to != null ? cNightR.value_to : prevR[nightM.id]) : undefined;
   if (pDay !== undefined && pNight !== undefined) {
     var bBox = document.createElement('div');
     bBox.className = 'bendras-box';
@@ -908,6 +910,18 @@ function calcTotal(aptId) {
   var unit = ms[0] && ms[0].meter_types ? ms[0].meter_types.unit : 'kWh';
   var el   = document.getElementById('tot-' + aptId);
   if (el) el.textContent = valid ? (Math.round(tot * 1000) / 1000 + ' ' + unit) : '—';
+
+  /* also update Bendras parodymas box with live IKI sum */
+  var bVal = document.querySelector('#card-' + aptId + ' .bendras-val');
+  if (bVal) {
+    var ikiSum = 0, bOk = true;
+    ms.forEach(function(m) {
+      var iEl = document.getElementById('iki-' + m.id);
+      var v = iEl ? parseFloat(iEl.value) : NaN;
+      if (isNaN(v)) { bOk = false; } else { ikiSum += v; }
+    });
+    if (bOk) bVal.textContent = Math.round(ikiSum * 1000) / 1000 + ' ' + unit;
+  }
 }
 
 /* ── FILTER ───────────────────────────────────────── */

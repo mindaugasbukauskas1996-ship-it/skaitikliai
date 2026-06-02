@@ -96,6 +96,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bendras-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
 .bendras-lbl{font-size:.72rem;color:#1d4ed8;font-weight:600;}
 .bendras-val{font-size:.98rem;font-weight:700;color:#1d4ed8;}
+.suvartota-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.suvartota-lbl{font-size:.72rem;color:#15803d;font-weight:600;}
+.suvartota-val{font-size:.98rem;font-weight:700;color:#15803d;}
 .meter-sec{margin-bottom:10px;}
 .meter-lbl{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:5px;}
 .meter-row{display:grid;grid-template-columns:1fr 1fr 48px;gap:6px;align-items:end;}
@@ -712,6 +715,7 @@ function renderApts() {
     var isSaved = aptMs.length > 0 && aptMs.every(function(m) { return curR[m.id]; });
     if (isSaved) done++;
     list.appendChild(buildAptCard(apt, aptMs, isSaved));
+    if (isSaved) calcTotal(apt.id); /* called AFTER DOM append so getElementById works */
   });
 
   updateStats(done, total);
@@ -807,7 +811,6 @@ function buildAptCard(apt, aptMs, isSaved) {
   foot.appendChild(sbtn);
   card.appendChild(foot);
 
-  if (isSaved) calcTotal(apt.id);
   return card;
 }
 
@@ -841,6 +844,14 @@ function buildElecBody(body, apt, aptMs, isSaved) {
       '<span class="bendras-val">' + (Number(pDay) + Number(pNight)) + ' kWh</span>';
     body.appendChild(bBox);
   }
+
+  /* Suvartota šį mėnesį = sum(IKI) - sum(NUO) — updated by calcTotal */
+  var sBox = document.createElement('div');
+  sBox.className = 'suvartota-box';
+  sBox.innerHTML =
+    '<span class="suvartota-lbl">📊 Suvartota šį mėnesį</span>' +
+    '<span class="suvartota-val" id="suvartota-' + apt.id + '">—</span>';
+  body.appendChild(sBox);
 
   if (dayM)   body.appendChild(buildMeterRow('☀ Dieninis',   dayM,   isSaved, apt.id));
   if (nightM) body.appendChild(buildMeterRow('🌙 Naktinis', nightM, isSaved, apt.id));
@@ -971,9 +982,16 @@ function calcTotal(aptId) {
     if (isNaN(iki)) { valid = false; return; }
     tot += iki - nuo;
   });
-  var unit = ms[0] && ms[0].meter_types ? ms[0].meter_types.unit : 'kWh';
-  var el   = document.getElementById('tot-' + aptId);
-  if (el) el.textContent = valid ? (Math.round(tot * 1000) / 1000 + ' ' + unit) : '—';
+  var unit   = ms[0] && ms[0].meter_types ? ms[0].meter_types.unit : 'kWh';
+  var totTxt = valid ? (Math.round(tot * 1000) / 1000 + ' ' + unit) : '—';
+
+  /* footer tot element */
+  var el = document.getElementById('tot-' + aptId);
+  if (el) el.textContent = totTxt;
+
+  /* prominent Suvartota box */
+  var sEl = document.getElementById('suvartota-' + aptId);
+  if (sEl) sEl.textContent = totTxt;
 
   /* also update Bendras parodymas box with live IKI sum */
   var bVal = document.querySelector('#card-' + aptId + ' .bendras-val');

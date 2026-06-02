@@ -60,6 +60,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .period-lbl{font-size:.9rem;font-weight:700;flex:1;}
 .period-inp{flex:1;border:1.5px solid var(--inp-b);border-radius:8px;padding:8px 10px;font-size:.9rem;font-weight:700;background:var(--inp);outline:none;color:var(--text);font-family:inherit;cursor:pointer;}
 .period-inp:focus{border-color:var(--blue);}
+.nav-month-btn{border:1.5px solid var(--inp-b);border-radius:8px;background:var(--inp);color:var(--text);font-size:.85rem;padding:7px 11px;cursor:pointer;min-height:38px;font-family:inherit;flex-shrink:0;}
+.nav-month-btn:hover{background:var(--blue);color:#fff;border-color:var(--blue);}
 .back-btn{padding:9px 13px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;min-height:44px;font-family:inherit;}
 
 /* ── STATS ── */
@@ -388,6 +390,12 @@ function getPrevMonth(ym) {
   return y + '-' + (m < 10 ? '0' + m : String(m));
 }
 
+function getNextMonth(ym) {
+  var p = ym.split('-'); var y = parseInt(p[0]); var m = parseInt(p[1]);
+  if (m === 12) { y++; m = 1; } else { m++; }
+  return y + '-' + (m < 10 ? '0' + m : String(m));
+}
+
 function toast(msg, type) {
   var el = document.getElementById('toast');
   el.textContent = msg;
@@ -534,7 +542,7 @@ function openAddress(addr) {
   document.getElementById('apt-list').innerHTML    =
     '<div class="loading"><div class="spinner"></div>Kraunama...</div>';
 
-  /* period bar: admin gets editable month input, tech gets plain label */
+  /* period bar: admin gets editable month input + nav arrows, tech gets plain label */
   var pLbl = document.getElementById('apts-period-lbl');
   if (userRole === 'admin') {
     var inp = document.createElement('input');
@@ -545,7 +553,33 @@ function openAddress(addr) {
     inp.addEventListener('change', function() {
       if (this.value) changeActivePeriod(this.value);
     });
-    pLbl.parentNode.replaceChild(inp, pLbl);
+
+    /* ← prev month button */
+    var btnPrev = document.createElement('button');
+    btnPrev.textContent = '◀';
+    btnPrev.className   = 'nav-month-btn';
+    btnPrev.title       = 'Praeitas mėnuo';
+    btnPrev.addEventListener('click', function() {
+      var pm = getPrevMonth(activePeriod);
+      inp.value = pm;
+      changeActivePeriod(pm);
+    });
+
+    /* → next month button */
+    var btnNext = document.createElement('button');
+    btnNext.textContent = '▶';
+    btnNext.className   = 'nav-month-btn';
+    btnNext.title       = 'Kitas mėnuo';
+    btnNext.addEventListener('click', function() {
+      var nm = getNextMonth(activePeriod);
+      inp.value = nm;
+      changeActivePeriod(nm);
+    });
+
+    var bar = pLbl.parentNode;
+    bar.replaceChild(btnPrev, pLbl);
+    bar.insertBefore(inp, btnPrev.nextSibling);
+    bar.insertBefore(btnNext, inp.nextSibling);
   } else {
     /* ensure it's a div (may have been replaced by input on prev visit) */
     if (pLbl.tagName !== 'DIV') {
@@ -628,15 +662,16 @@ function loadApts(addrId) {
       curR = {};
       curr.forEach(function(r) { curR[r.meter_id] = r; });
 
-      /* ── PERIOD GAP CHECK ─────────────────────────────
+      /* ── PERIOD GAP CHECK (tech only) ────────────────
          If current period has no entries but there IS historical
          data (prevR not empty), check whether the previous month
-         was also skipped. If yes → auto-redirect to that month.  */
+         was also skipped. If yes → auto-redirect to that month.
+         Admin can freely navigate any month.                     */
       var prevMonth    = getPrevMonth(activePeriod);
       var hasPrevHist  = Object.keys(prevR).length > 0;
       var curEmpty     = Object.keys(curR).length === 0;
 
-      if (curEmpty && hasPrevHist) {
+      if (curEmpty && hasPrevHist && userRole !== 'admin') {
         var mIds2 = meterList.map(function(m) { return m.id; }).join(',');
         return sbGet(
           'readings?meter_id=in.(' + mIds2 + ')&period=eq.' + prevMonth + '&limit=1'

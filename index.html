@@ -627,6 +627,35 @@ function loadApts(addrId) {
     .then(function(curr) {
       curR = {};
       curr.forEach(function(r) { curR[r.meter_id] = r; });
+
+      /* ── PERIOD GAP CHECK ─────────────────────────────
+         If current period has no entries but there IS historical
+         data (prevR not empty), check whether the previous month
+         was also skipped. If yes → auto-redirect to that month.  */
+      var prevMonth    = getPrevMonth(activePeriod);
+      var hasPrevHist  = Object.keys(prevR).length > 0;
+      var curEmpty     = Object.keys(curR).length === 0;
+
+      if (curEmpty && hasPrevHist) {
+        var mIds2 = meterList.map(function(m) { return m.id; }).join(',');
+        return sbGet(
+          'readings?meter_id=in.(' + mIds2 + ')&period=eq.' + prevMonth + '&limit=1'
+        ).then(function(prevMonthRows) {
+          if (prevMonthRows.length === 0) {
+            toast('⚠ ' + periodToLabel(prevMonth) + ' rodmenys nesuvesti! Perjungta į praeitą mėnesį.', 'er');
+            activePeriod = prevMonth;
+            var pp = document.getElementById('period-picker');
+            if (pp) pp.value = prevMonth;
+            setHdr(selAddr.name, periodToLabel(activePeriod), true, true);
+            prevR = {};
+            curR  = {};
+            loadApts(selAddr.id);
+            return;
+          }
+          renderApts();
+        });
+      }
+
       renderApts();
     })
     .catch(function(e) {

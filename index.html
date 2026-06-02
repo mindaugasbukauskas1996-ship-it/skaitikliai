@@ -97,6 +97,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bendras-lbl{font-size:.72rem;color:#1d4ed8;font-weight:600;}
 .bendras-val{font-size:.98rem;font-weight:700;color:#1d4ed8;}
 .suvartota-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.heat-excel-bar{padding:8px 16px 0;}
+.heat-excel-btn{width:100%;padding:10px;border:1.5px solid #0369a1;border-radius:10px;background:#e0f2fe;color:#0369a1;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;}
+.heat-excel-btn:hover{background:#0369a1;color:#fff;}
 .suvartota-lbl{font-size:.72rem;color:#15803d;font-weight:600;}
 .suvartota-val{font-size:.98rem;font-weight:700;color:#15803d;}
 .meter-sec{margin-bottom:10px;}
@@ -216,6 +219,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="tbtn on" id="f-all">Visi</button>
     <button class="tbtn" id="f-pending">Liko</button>
     <button class="tbtn" id="f-done">Atlikta</button>
+  </div>
+  <div id="heat-excel-bar" class="heat-excel-bar hidden">
+    <button class="heat-excel-btn" id="btn-heat-excel" onclick="downloadHeatReport()">&#x1F4E5; Parsisiųsti Excel ataskaitą</button>
   </div>
   <div class="section-lbl">Butai</div>
   <div id="apt-list">
@@ -597,6 +603,16 @@ function openAddress(addr) {
 
   resetFilterBtns();
   if (userRole === 'admin') { setActiveTab('tab-home'); }
+
+  /* show Excel download button only for heat-type addresses */
+  var excelBar = document.getElementById('heat-excel-bar');
+  if (excelBar) {
+    if (addrMeta(addr.name).type === 'heat') {
+      excelBar.classList.remove('hidden');
+    } else {
+      excelBar.classList.add('hidden');
+    }
+  }
 
   loadApts(addr.id);
 }
@@ -2010,6 +2026,93 @@ function exportAllXlsx() {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
   toast('Excel 2+2A eksportuotas!', 'ok');
+}
+
+/* ── HEAT METER EXCEL REPORT ──────────────────────── */
+function downloadHeatReport() {
+  var mwhM = null, m3M = null, hM = null, wM = null;
+  meterList.forEach(function(m) {
+    var c = m.meter_types && m.meter_types.code;
+    if      (c === 'heat_mwh' && !mwhM)                       mwhM = m;
+    else if (c === 'heat_m3'  && !m3M)                        m3M  = m;
+    else if (c === 'heat_h'   && !hM)                         hM   = m;
+    else if ((c === 'water_m3' || c === 'hot_water') && !wM)  wM   = m;
+  });
+
+  function getVal(m) { return m && curR[m.id]  ? curR[m.id].value_to  : ''; }
+  function getNuo(m) { return m && prevR[m.id] !== undefined ? prevR[m.id] : ''; }
+  function getDiff(n, v) {
+    var nf = parseFloat(n), vf = parseFloat(v);
+    return (!isNaN(nf) && !isNaN(vf)) ? +(vf - nf).toFixed(3) : '';
+  }
+
+  var mwhNuo = getNuo(mwhM), mwhIki = getVal(mwhM), mwhDiff = getDiff(mwhNuo, mwhIki);
+  var m3Nuo  = getNuo(m3M),  m3Iki  = getVal(m3M),  m3Diff  = getDiff(m3Nuo,  m3Iki);
+  var hNuo   = getNuo(hM),   hIki   = getVal(hM),   hDiff   = getDiff(hNuo,   hIki);
+  var wNuo   = getNuo(wM),   wIki   = getVal(wM),   wDiff   = getDiff(wNuo,   wIki);
+
+  var parts = activePeriod.split('-');
+  var year  = parts[0], monthNum = parseInt(parts[1]);
+  var mNames = ['sausio','vasario','kovo','balandžio','gegužės','birželio',
+                'liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];
+  var monthStr = mNames[monthNum - 1] + ' mėn.';
+
+  var heatSerial  = (mwhM && mwhM.meter_serial) ? String(mwhM.meter_serial) : '';
+  var waterSerial = (wM   && wM.meter_serial)   ? String(wM.meter_serial)   : '';
+  var heatName    = 'Šilumos skaitiklis' + (heatSerial  ? '  Gamyklinis Nr.  ' + heatSerial  : '');
+  var waterName   = 'Vandens skaitiklis prieš boilerį' + (waterSerial ? '  Gamyklinis Nr. ' + waterSerial : '');
+
+  var today = new Date();
+  var dateStr = today.getFullYear() + '-' +
+    String(today.getMonth() + 1).padStart(2, '0') + '-' +
+    String(today.getDate()).padStart(2, '0');
+
+  function xe(v) {
+    if (v === '' || v == null) return '<Cell/>';
+    var isNum = typeof v === 'number';
+    return '<Cell><Data ss:Type="' + (isNum ? 'Number' : 'String') + '">' +
+      String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+      '</Data></Cell>';
+  }
+  function xrow(cells) { return '<Row>' + cells.map(xe).join('') + '</Row>\n'; }
+  function xempty()    { return '<Row/>\n'; }
+
+  var t = '<Table>\n' +
+    xrow(['', '', '', 'UAB "Mano Būstas Vakarai"', '', '', 219]) +
+    xrow(['', '', '', '(vardas, pavardė)', '', '', '(kodas)']) +
+    xrow(['', '', '', selAddr.name, '', '', '']) +
+    xrow(['', '', '', '(adresas)', '', '', '']) +
+    xrow(['', 'APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr, '', '', '', '', '']) +
+    xempty() +
+    xrow(['', 'Prietaiso pavadinimas', 'Mat. vnt.', '', 'Prietaisų parodymai', '', 'Pastabos']) +
+    xrow(['', '', '', 'mėn. pradž.', 'mėn. gale', 'skirtumas', '']) +
+    xrow(['', heatName, 'MWh/kWh', mwhNuo, mwhIki, mwhDiff, '']) +
+    xrow(['', '', 'm3', m3Nuo, m3Iki, m3Diff, '']) +
+    xrow(['', '', 'val', hNuo, hIki, hDiff, '']) +
+    xempty() +
+    xrow(['', waterName, 'm3', wNuo, wIki, wDiff, '']) +
+    xrow(['', '', '', 'Gintaras Gečas', '', '', '']) +
+    xrow(['', '', '', '', '(atsakingo asmens vardas, pavardė, parašas)', '', '']) +
+    xrow(['', '', '', '', '', '', dateStr]) +
+    xrow(['', '', '', '', '', '(duomenų fiksavimo data)', '']) +
+    '</Table>';
+
+  var sheetName = activePeriod;
+  var wb = '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<?mso-application progid="Excel.Sheet"?>' +
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' +
+    ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+    '<Worksheet ss:Name="' + sheetName + '">' + t + '</Worksheet></Workbook>';
+
+  var safeName = selAddr.name.replace(/\s+/g, '_').replace(/[\/\\:*?"<>|]/g, '');
+  var blob = new Blob([wb], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = 'sildymo_' + safeName + '_' + activePeriod + '.xls';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('Excel ataskaita parsisiųsta!', 'ok');
 }
 
 /* ── CSV EXPORT ───────────────────────────────────── */

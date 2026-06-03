@@ -2064,84 +2064,100 @@ function downloadHeatReport() {
   var entryDate = year + '-' + String(monthNum).padStart(2, '0') + '-' +
     String(lastDay.getDate()).padStart(2, '0');
 
-  /* SpreadsheetML helpers */
-  var BORD = '<Borders>' +
-    '<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>' +
-    '<Border ss:Position="Left"   ss:LineStyle="Continuous" ss:Weight="1"/>' +
-    '<Border ss:Position="Right"  ss:LineStyle="Continuous" ss:Weight="1"/>' +
-    '<Border ss:Position="Top"    ss:LineStyle="Continuous" ss:Weight="1"/>' +
-    '</Borders>';
+  /* HTML table export */
+  function eh(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fn(v) { return (v !== null) ? String(Math.round(v)) : ''; }
 
-  var styles =
-    '<Styles>' +
-    '<Style ss:ID="s151"><Font ss:Bold="1"/></Style>' +
-    '<Style ss:ID="s107"><Borders/></Style>' +
-    '<Style ss:ID="s77"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' + BORD + '</Style>' +
-    '<Style ss:ID="s79">' + BORD + '</Style>' +
-    '<Style ss:ID="s130"><Alignment ss:Vertical="Center"/>' + BORD + '</Style>' +
-    '<Style ss:ID="s131"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>' + BORD + '</Style>' +
-    '<Style ss:ID="s132"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' + BORD + '</Style>' +
-    '<Style ss:ID="sempty"><Alignment ss:Horizontal="Center" ss:Vertical="Bottom"/>' + BORD + '</Style>' +
-    '<Style ss:ID="s150"><Alignment ss:Horizontal="Center" ss:Vertical="Bottom"/>' +
-      '<Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>' +
-    '<Style ss:ID="s62"><NumberFormat ss:Format="Short Date"/></Style>' +
-    '</Styles>';
+  var nb = 'padding:2px 4px;';
+  var B  = 'border:1px solid #000;padding:2px 4px;';
+  var BC = B + 'text-align:center;';
+  var BM = B + 'text-align:center;vertical-align:middle;';
+  var BW = B + 'text-align:center;vertical-align:middle;word-break:break-word;';
 
-  function xe(v, style, extra) {
-    var attrs = '';
-    if (extra) attrs += ' ' + extra;
-    if (style) attrs += ' ss:StyleID="' + style + '"';
-    if (v === '' || v == null) return '<Cell' + attrs + '/>';
-    var isNum = typeof v === 'number';
-    return '<Cell' + attrs + '><Data ss:Type="' + (isNum ? 'Number' : 'String') + '">' +
-      String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') +
-      '</Data></Cell>';
-  }
-  function xn(v, style, extra) {
-    var n = (v !== null) ? Math.round(v) : null;
-    return (n !== null) ? xe(n, style || 's132', extra) : xe('', style || 's132', extra);
-  }
-  function xdt(dtStr, style, extra) {
-    var attrs = '';
-    if (extra) attrs += ' ' + extra;
-    if (style) attrs += ' ss:StyleID="' + style + '"';
-    return '<Cell' + attrs + '><Data ss:Type="DateTime">' + dtStr + 'T00:00:00.000</Data></Cell>';
-  }
-  function R(cells) { return '<Row>' + cells.join('') + '</Row>\n'; }
+  var h = '<table style=”border-collapse:collapse;font-size:10pt;font-family:Arial,sans-serif;”>\n';
 
-  var t = '<Table>\n';
-  t += R([xe('UAB “Mano Būstas Vakarai”','s151','ss:Index="4"'), xe('','s151'), xe('','s151'), xe(219,'s151')]);
-  t += R([xe('(vardas, pavardė)','','ss:Index="4"'), xe('(kodas)','','ss:Index="7"')]);
-  t += R([xe(selAddr.name,'s151','ss:Index="4"')]);
-  t += R([xe('(adresas)','','ss:Index="4"')]);
-  t += R([xe('APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr,'s151','ss:Index="2"')]);
-  t += R([xe('','s107')]);
-  t += R([xe('','s107'), xe('Prietaiso pavadinimas','s77','ss:MergeDown="1"'), xe('Mat. vnt.','s77','ss:MergeDown="1"'), xe('Prietaisų parodymai','s77','ss:MergeAcross="2"'), xe('Pastabos','s77','ss:MergeDown="1"')]);
-  t += R([xe('mėn. pradž.','s130','ss:Index="4"'), xe('mėn. gale','s130'), xe('skirtumas','s130')]);
-  t += R([xe(heatName,'s131','ss:Index="2" ss:MergeDown="2"'), xe('MWh/kWh','s79'), xn(mwhNuo), xn(mwhIki), xn(mwhDiff), xe('','s79')]);
-  t += R([xe('m3','s79','ss:Index="3"'), xn(m3Nuo), xn(m3Iki), xn(m3Diff), xe('','s79')]);
-  t += R([xe('val','s79','ss:Index="3"'), xn(hNuo), xn(hIki), xn(hDiff), xe('','s79')]);
+  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
+       '<td colspan=”3” style=”'+nb+';font-weight:bold;”>UAB “Mano Būstas Vakarai”</td>' +
+       '<td style=”'+nb+';font-weight:bold;”>219</td></tr>\n';
+
+  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
+       '<td colspan=”3” style=”'+nb+'”>(vardas, pavardė)</td>' +
+       '<td style=”'+nb+'”>(kodas)</td></tr>\n';
+
+  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
+       '<td colspan=”4” style=”'+nb+';font-weight:bold;”>' + eh(selAddr.name) + '</td></tr>\n';
+
+  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
+       '<td colspan=”4” style=”'+nb+'”>(adresas)</td></tr>\n';
+
+  h += '<tr><td style=”'+nb+'”></td>' +
+       '<td colspan=”6” style=”'+nb+';font-weight:bold;”>APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr + '</td></tr>\n';
+
+  h += '<tr><td colspan=”7” style=”'+nb+';height:8px;”></td></tr>\n';
+
+  h += '<tr><td style=”'+nb+'”></td>' +
+       '<td rowspan=”2” style=”'+BM+'”>Prietaiso pavadinimas</td>' +
+       '<td rowspan=”2” style=”'+BM+'”>Mat. vnt.</td>' +
+       '<td colspan=”3” style=”'+BC+'”>Prietaisų parodymai</td>' +
+       '<td rowspan=”2” style=”'+BM+'”>Pastabos</td></tr>\n';
+
+  h += '<tr><td style=”'+nb+'”></td>' +
+       '<td style=”'+BM+'”>mėn. pradž.</td>' +
+       '<td style=”'+BM+'”>mėn. gale</td>' +
+       '<td style=”'+BM+'”>skirtumas</td></tr>\n';
+
+  h += '<tr><td style=”'+nb+'”></td>' +
+       '<td rowspan=”3” style=”'+BW+'”>' + eh(heatName) + '</td>' +
+       '<td style=”'+BM+'”>MWh/kWh</td>' +
+       '<td style=”'+BC+'”>' + fn(mwhNuo) + '</td>' +
+       '<td style=”'+BC+'”>' + fn(mwhIki) + '</td>' +
+       '<td style=”'+BC+'”>' + fn(mwhDiff) + '</td>' +
+       '<td style=”'+B+'”></td></tr>\n';
+
+  h += '<tr><td style=”'+nb+'”></td>' +
+       '<td style=”'+BM+'”>m3</td>' +
+       '<td style=”'+BC+'”>' + fn(m3Nuo) + '</td>' +
+       '<td style=”'+BC+'”>' + fn(m3Iki) + '</td>' +
+       '<td style=”'+BC+'”>' + fn(m3Diff) + '</td>' +
+       '<td style=”'+B+'”></td></tr>\n';
+
+  h += '<tr><td style=”'+nb+'”></td>' +
+       '<td style=”'+BM+'”>val</td>' +
+       '<td style=”'+BC+'”>' + fn(hNuo) + '</td>' +
+       '<td style=”'+BC+'”>' + fn(hIki) + '</td>' +
+       '<td style=”'+BC+'”>' + fn(hDiff) + '</td>' +
+       '<td style=”'+B+'”></td></tr>\n';
+
   if (wM !== null) {
-    t += R([xe(waterName,'s131','ss:Index="2" ss:MergeDown="1"'), xe('m3','s77','ss:MergeDown="1"'), xn(wNuo,'s77','ss:MergeDown="1"'), xn(wIki,'s77','ss:MergeDown="1"'), xn(wDiff,'s77','ss:MergeDown="1"'), xe('','sempty','ss:MergeDown="1"')]);
+    h += '<tr><td style=”'+nb+'”></td>' +
+         '<td rowspan=”2” style=”'+BW+'”>' + eh(waterName) + '</td>' +
+         '<td rowspan=”2” style=”'+BM+'”>m3</td>' +
+         '<td rowspan=”2” style=”'+BM+'”>' + fn(wNuo) + '</td>' +
+         '<td rowspan=”2” style=”'+BM+'”>' + fn(wIki) + '</td>' +
+         '<td rowspan=”2” style=”'+BM+'”>' + fn(wDiff) + '</td>' +
+         '<td rowspan=”2” style=”'+B+'”></td></tr>\n';
+    h += '<tr><td style=”'+nb+'”></td></tr>\n';
   }
-  t += R([xe('Mindaugas Bukauskas','s150','ss:Index="5" ss:MergeAcross="2"')]);
-  t += R([xe('(atsakingo asmens vardas, pavardė, parašas)','','ss:Index="5"')]);
-  t += R([xdt(entryDate,'s62','ss:Index="7"')]);
-  t += R([xe('(duomenų fiksavimo data)','','ss:Index="6"')]);
-  t += '</Table>';
 
-  var sheetName = activePeriod;
-  var wb = '<?xml version="1.0" encoding="UTF-8"?>' +
-    '<?mso-application progid="Excel.Sheet"?>' +
-    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' +
-    ' xmlns:o="urn:schemas-microsoft-com:office:office"' +
-    ' xmlns:x="urn:schemas-microsoft-com:office:excel"' +
-    ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
-    styles +
-    '<Worksheet ss:Name="' + sheetName + '">' + t + '</Worksheet></Workbook>';
+  h += '<tr><td colspan=”4” style=”'+nb+'”></td>' +
+       '<td colspan=”3” style=”text-align:center;border-top:1px solid #000;padding:2px 4px;font-weight:bold;”>Mindaugas Bukauskas</td></tr>\n';
 
-  var safeName = selAddr.name.replace(/\s+/g, '_').replace(/[\/\\:*?"<>|]/g, '');
-  var blob = new Blob([wb], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  h += '<tr><td colspan=”4” style=”'+nb+'”></td>' +
+       '<td colspan=”3” style=”'+nb+';text-align:center;”>(atsakingo asmens vardas, pavardė, parašas)</td></tr>\n';
+
+  h += '<tr><td colspan=”6” style=”'+nb+'”></td>' +
+       '<td style=”'+nb+'”>' + eh(entryDate) + '</td></tr>\n';
+
+  h += '<tr><td colspan=”5” style=”'+nb+'”></td>' +
+       '<td colspan=”2” style=”'+nb+'”>(duomenų fiksavimo data)</td></tr>\n';
+
+  h += '</table>';
+
+  var html = '<html xmlns:o=”urn:schemas-microsoft-com:office:office” xmlns:x=”urn:schemas-microsoft-com:office:excel”>' +
+    '<head><meta charset=”UTF-8”></head><body>' + h + '</body></html>';
+
+  var safeName = selAddr.name.replace(/\s+/g, '_').replace(/[\/\\:*?”<>|]/g, '');
+  var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
   var url  = URL.createObjectURL(blob);
   var a    = document.createElement('a');
   a.href = url;

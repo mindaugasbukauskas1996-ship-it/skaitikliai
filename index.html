@@ -673,7 +673,7 @@ function loadApts(addrId) {
       var mIds = meterList.map(function(m) { return m.id; }).join(',');
       /* readings for the active period */
       return sbGet(
-        'readings?select=id,meter_id,value_from,value_to,note' +
+        'readings?select=id,meter_id,value_from,value_to,note,created_at' +
         '&meter_id=in.(' + mIds + ')&period=eq.' + activePeriod
       );
     })
@@ -2039,17 +2039,14 @@ function downloadHeatReport() {
     else if ((c === 'water_m3' || c === 'hot_water') && !wM)  wM   = m;
   });
 
-  function getVal(m) { return m && curR[m.id]  ? curR[m.id].value_to  : ''; }
-  function getNuo(m) { return m && prevR[m.id] !== undefined ? prevR[m.id] : ''; }
-  function getDiff(n, v) {
-    var nf = parseFloat(n), vf = parseFloat(v);
-    return (!isNaN(nf) && !isNaN(vf)) ? +(vf - nf).toFixed(3) : '';
-  }
+  function getIki(m) { return (m && curR[m.id] && curR[m.id].value_to != null) ? curR[m.id].value_to : null; }
+  function getNuo2(m){ return (m && prevR[m.id] !== undefined) ? prevR[m.id] : null; }
+  function getDiff2(n,v){ return (n !== null && v !== null) ? Math.round(v - n) : null; }
 
-  var mwhNuo = getNuo(mwhM), mwhIki = getVal(mwhM), mwhDiff = getDiff(mwhNuo, mwhIki);
-  var m3Nuo  = getNuo(m3M),  m3Iki  = getVal(m3M),  m3Diff  = getDiff(m3Nuo,  m3Iki);
-  var hNuo   = getNuo(hM),   hIki   = getVal(hM),   hDiff   = getDiff(hNuo,   hIki);
-  var wNuo   = getNuo(wM),   wIki   = getVal(wM),   wDiff   = getDiff(wNuo,   wIki);
+  var mwhNuo = getNuo2(mwhM), mwhIki = getIki(mwhM), mwhDiff = getDiff2(mwhNuo, mwhIki);
+  var m3Nuo  = getNuo2(m3M),  m3Iki  = getIki(m3M),  m3Diff  = getDiff2(m3Nuo,  m3Iki);
+  var hNuo   = getNuo2(hM),   hIki   = getIki(hM),   hDiff   = getDiff2(hNuo,   hIki);
+  var wNuo   = getNuo2(wM),   wIki   = getIki(wM),   wDiff   = getDiff2(wNuo,   wIki);
 
   var parts = activePeriod.split('-');
   var year  = parts[0], monthNum = parseInt(parts[1]);
@@ -2059,49 +2056,97 @@ function downloadHeatReport() {
 
   var heatSerial  = (mwhM && mwhM.meter_serial) ? String(mwhM.meter_serial) : '';
   var waterSerial = (wM   && wM.meter_serial)   ? String(wM.meter_serial)   : '';
-  var heatName    = 'Šilumos skaitiklis' + (heatSerial  ? '  Gamyklinis Nr.  ' + heatSerial  : '');
-  var waterName   = 'Vandens skaitiklis prieš boilerį' + (waterSerial ? '  Gamyklinis Nr. ' + waterSerial : '');
+  var heatName    = 'Šilumos skaitiklis  Gamyklinis Nr.  ' + heatSerial;
+  var waterName   = 'Vandens skaitiklis prieš boilerį  Gamyklinis Nr. ' + waterSerial;
 
-  var today = new Date();
-  var dateStr = today.getFullYear() + '-' +
-    String(today.getMonth() + 1).padStart(2, '0') + '-' +
-    String(today.getDate()).padStart(2, '0');
+  /* Date: created_at of the MWh reading, else last day of period */
+  var entryDate = '';
+  if (mwhM && curR[mwhM.id] && curR[mwhM.id].created_at) {
+    var d = new Date(curR[mwhM.id].created_at);
+    entryDate = d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  } else {
+    var lastDay = new Date(parseInt(year), monthNum, 0);
+    entryDate = year + '-' + String(monthNum).padStart(2, '0') + '-' +
+      String(lastDay.getDate()).padStart(2, '0');
+  }
 
-  function xe(v) {
-    if (v === '' || v == null) return '<Cell/>';
+  /* SpreadsheetML helpers */
+  var BORD = '<Borders>' +
+    '<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>' +
+    '<Border ss:Position="Left"   ss:LineStyle="Continuous" ss:Weight="1"/>' +
+    '<Border ss:Position="Right"  ss:LineStyle="Continuous" ss:Weight="1"/>' +
+    '<Border ss:Position="Top"    ss:LineStyle="Continuous" ss:Weight="1"/>' +
+    '</Borders>';
+
+  var styles =
+    '<Styles>' +
+    '<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Bottom"/><Borders/><Font ss:FontName="Calibri" ss:Size="11"/></Style>' +
+    '<Style ss:ID="s151"><Font ss:Bold="1"/></Style>' +
+    '<Style ss:ID="s107"><Borders/></Style>' +
+    '<Style ss:ID="s77"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' + BORD + '</Style>' +
+    '<Style ss:ID="s79">' + BORD + '</Style>' +
+    '<Style ss:ID="s130"><Alignment ss:Vertical="Center"/>' + BORD + '</Style>' +
+    '<Style ss:ID="s131"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>' + BORD + '</Style>' +
+    '<Style ss:ID="s132"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' + BORD + '</Style>' +
+    '<Style ss:ID="sempty"><Alignment ss:Horizontal="Center" ss:Vertical="Bottom"/>' + BORD + '</Style>' +
+    '<Style ss:ID="s150"><Alignment ss:Horizontal="Center" ss:Vertical="Bottom"/>' +
+      '<Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>' +
+    '<Style ss:ID="s62"><NumberFormat ss:Format="Short Date"/></Style>' +
+    '</Styles>';
+
+  function xe(v, style, extra) {
+    var attrs = '';
+    if (extra) attrs += ' ' + extra;
+    if (style) attrs += ' ss:StyleID="' + style + '"';
+    if (v === '' || v == null) return '<Cell' + attrs + '/>';
     var isNum = typeof v === 'number';
-    return '<Cell><Data ss:Type="' + (isNum ? 'Number' : 'String') + '">' +
+    return '<Cell' + attrs + '><Data ss:Type="' + (isNum ? 'Number' : 'String') + '">' +
       String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') +
       '</Data></Cell>';
   }
-  function xrow(cells) { return '<Row>' + cells.map(xe).join('') + '</Row>\n'; }
-  function xempty()    { return '<Row/>\n'; }
+  function xn(v, style, extra) {
+    var n = (v !== null) ? Math.round(v) : null;
+    return (n !== null) ? xe(n, style || 's132', extra) : xe('', style || 's132', extra);
+  }
+  function xdt(dtStr, style, extra) {
+    var attrs = '';
+    if (extra) attrs += ' ' + extra;
+    if (style) attrs += ' ss:StyleID="' + style + '"';
+    return '<Cell' + attrs + '><Data ss:Type="DateTime">' + dtStr + 'T00:00:00.000</Data></Cell>';
+  }
+  function R(cells) { return '<Row>' + cells.join('') + '</Row>\n'; }
 
-  var t = '<Table>\n' +
-    xrow(['', '', '', 'UAB "Mano Būstas Vakarai"', '', '', 219]) +
-    xrow(['', '', '', '(vardas, pavardė)', '', '', '(kodas)']) +
-    xrow(['', '', '', selAddr.name, '', '', '']) +
-    xrow(['', '', '', '(adresas)', '', '', '']) +
-    xrow(['', 'APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr, '', '', '', '', '']) +
-    xempty() +
-    xrow(['', 'Prietaiso pavadinimas', 'Mat. vnt.', '', 'Prietaisų parodymai', '', 'Pastabos']) +
-    xrow(['', '', '', 'mėn. pradž.', 'mėn. gale', 'skirtumas', '']) +
-    xrow(['', heatName, 'MWh/kWh', mwhNuo, mwhIki, mwhDiff, '']) +
-    xrow(['', '', 'm3', m3Nuo, m3Iki, m3Diff, '']) +
-    xrow(['', '', 'val', hNuo, hIki, hDiff, '']) +
-    xempty() +
-    xrow(['', waterName, 'm3', wNuo, wIki, wDiff, '']) +
-    xrow(['', '', '', 'Gintaras Gečas', '', '', '']) +
-    xrow(['', '', '', '', '(atsakingo asmens vardas, pavardė, parašas)', '', '']) +
-    xrow(['', '', '', '', '', '', dateStr]) +
-    xrow(['', '', '', '', '', '(duomenų fiksavimo data)', '']) +
-    '</Table>';
+  var t = '<Table>\n';
+  t += R([xe('UAB “Mano Būstas Vakarai”','s151','ss:Index="4"'), xe('','s151'), xe('','s151'), xe(219,'s151')]);
+  t += R([xe('(vardas, pavardė)','','ss:Index="4"'), xe('(kodas)','','ss:Index="7"')]);
+  t += R([xe(selAddr.name,'s151','ss:Index="4"')]);
+  t += R([xe('(adresas)','','ss:Index="4"')]);
+  t += R([xe('APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr,'s151','ss:Index="2"')]);
+  t += R([xe('','s107')]);
+  t += R([xe('','s107'), xe('Prietaiso pavadinimas','s77','ss:MergeDown="1"'), xe('Mat. vnt.','s77','ss:MergeDown="1"'), xe('Prietaisų parodymai','s77','ss:MergeAcross="2"'), xe('Pastabos','s77','ss:MergeDown="1"')]);
+  t += R([xe('mėn. pradž.','s130','ss:Index="4"'), xe('mėn. gale','s130'), xe('skirtumas','s130')]);
+  t += R([xe(heatName,'s131','ss:Index="2" ss:MergeDown="2"'), xe('MWh/kWh','s79'), xn(mwhNuo), xn(mwhIki), xn(mwhDiff), xe('','s79')]);
+  t += R([xe('m3','s79','ss:Index="3"'), xn(m3Nuo), xn(m3Iki), xn(m3Diff), xe('','s79')]);
+  t += R([xe('val','s79','ss:Index="3"'), xn(hNuo), xn(hIki), xn(hDiff), xe('','s79')]);
+  if (wM !== null) {
+    t += R([xe(waterName,'s131','ss:Index="2" ss:MergeDown="1"'), xe('m3','s77','ss:MergeDown="1"'), xn(wNuo,'s77','ss:MergeDown="1"'), xn(wIki,'s77','ss:MergeDown="1"'), xn(wDiff,'s77','ss:MergeDown="1"'), xe('','sempty','ss:MergeDown="1"')]);
+  }
+  t += R([xe('Mindaugas Bukauskas','s150','ss:Index="5" ss:MergeAcross="2"')]);
+  t += R([xe('(atsakingo asmens vardas, pavardė, parašas)','','ss:Index="5"')]);
+  t += R([xdt(entryDate,'s62','ss:Index="7"')]);
+  t += R([xe('(duomenų fiksavimo data)','','ss:Index="6"')]);
+  t += '</Table>';
 
   var sheetName = activePeriod;
   var wb = '<?xml version="1.0" encoding="UTF-8"?>' +
     '<?mso-application progid="Excel.Sheet"?>' +
     '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' +
+    ' xmlns:o="urn:schemas-microsoft-com:office:office"' +
+    ' xmlns:x="urn:schemas-microsoft-com:office:excel"' +
     ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' +
+    styles +
     '<Worksheet ss:Name="' + sheetName + '">' + t + '</Worksheet></Workbook>';
 
   var safeName = selAddr.name.replace(/\s+/g, '_').replace(/[\/\\:*?"<>|]/g, '');

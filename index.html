@@ -97,9 +97,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .bendras-lbl{font-size:.72rem;color:#1d4ed8;font-weight:600;}
 .bendras-val{font-size:.98rem;font-weight:700;color:#1d4ed8;}
 .suvartota-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
-.heat-excel-bar{padding:8px 16px 0;}
-.heat-excel-btn{width:100%;padding:10px;border:1.5px solid #0369a1;border-radius:10px;background:#e0f2fe;color:#0369a1;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;}
+.heat-excel-bar{padding:8px 16px 0;display:flex;gap:8px;}
+.heat-excel-btn{flex:1;padding:10px;border:1.5px solid #0369a1;border-radius:10px;background:#e0f2fe;color:#0369a1;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;}
 .heat-excel-btn:hover{background:#0369a1;color:#fff;}
+.heat-pdf-btn{border-color:#7c3aed;background:#ede9fe;color:#7c3aed;}
+.heat-pdf-btn:hover{background:#7c3aed;color:#fff;}
 .suvartota-lbl{font-size:.72rem;color:#15803d;font-weight:600;}
 .suvartota-val{font-size:.98rem;font-weight:700;color:#15803d;}
 .meter-sec{margin-bottom:10px;}
@@ -221,7 +223,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="tbtn" id="f-done">Atlikta</button>
   </div>
   <div id="heat-excel-bar" class="heat-excel-bar hidden">
-    <button class="heat-excel-btn" id="btn-heat-excel" onclick="downloadHeatReport()">&#x1F4E5; Parsisiųsti Excel ataskaitą</button>
+    <button class="heat-excel-btn" id="btn-heat-excel" onclick="downloadHeatReport()">&#x1F4E5; Excel</button>
+    <button class="heat-excel-btn heat-pdf-btn" id="btn-heat-pdf" onclick="downloadHeatPdf()">&#x1F4C4; PDF</button>
   </div>
   <div class="section-lbl">Butai</div>
   <div id="apt-list">
@@ -2064,93 +2067,82 @@ function downloadHeatReport() {
   var entryDate = year + '-' + String(monthNum).padStart(2, '0') + '-' +
     String(lastDay.getDate()).padStart(2, '0');
 
-  /* HTML table export */
+  /* HTML table export (border=”1” on data table — works in Excel Protected View) */
   function eh(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function fn(v) { return (v !== null) ? String(Math.round(v)) : ''; }
 
-  var nb = 'padding:2px 4px;';
-  var B  = 'border:1px solid #000;padding:2px 4px;';
-  var BC = B + 'text-align:center;';
-  var BM = B + 'text-align:center;vertical-align:middle;';
-  var BW = B + 'text-align:center;vertical-align:middle;word-break:break-word;';
+  var C = 'text-align:center;';
+  var M = 'text-align:center;vertical-align:middle;';
+  var W = 'text-align:center;vertical-align:middle;word-break:break-word;';
 
-  var h = '<table style=”border-collapse:collapse;font-size:10pt;font-family:Arial,sans-serif;”>\n';
+  /* header table — no borders */
+  var h = '<table cellpadding=”2” style=”font-size:10pt;font-family:Arial,sans-serif;”>';
+  h += '<tr><td colspan=”3”></td>' +
+       '<td colspan=”3” style=”font-weight:bold;”>UAB “Mano Būstas Vakarai”</td>' +
+       '<td style=”font-weight:bold;”>219</td></tr>';
+  h += '<tr><td colspan=”3”></td>' +
+       '<td colspan=”3”>(vardas, pavardė)</td>' +
+       '<td>(kodas)</td></tr>';
+  h += '<tr><td colspan=”3”></td>' +
+       '<td colspan=”4” style=”font-weight:bold;”>' + eh(selAddr.name) + '</td></tr>';
+  h += '<tr><td colspan=”3”></td>' +
+       '<td colspan=”4”>(adresas)</td></tr>';
+  h += '<tr><td></td>' +
+       '<td colspan=”6” style=”font-weight:bold;”>APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr + '</td></tr>';
+  h += '</table>';
 
-  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
-       '<td colspan=”3” style=”'+nb+';font-weight:bold;”>UAB “Mano Būstas Vakarai”</td>' +
-       '<td style=”'+nb+';font-weight:bold;”>219</td></tr>\n';
-
-  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
-       '<td colspan=”3” style=”'+nb+'”>(vardas, pavardė)</td>' +
-       '<td style=”'+nb+'”>(kodas)</td></tr>\n';
-
-  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
-       '<td colspan=”4” style=”'+nb+';font-weight:bold;”>' + eh(selAddr.name) + '</td></tr>\n';
-
-  h += '<tr><td colspan=”3” style=”'+nb+'”></td>' +
-       '<td colspan=”4” style=”'+nb+'”>(adresas)</td></tr>\n';
-
-  h += '<tr><td style=”'+nb+'”></td>' +
-       '<td colspan=”6” style=”'+nb+';font-weight:bold;”>APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr + '</td></tr>\n';
-
-  h += '<tr><td colspan=”7” style=”'+nb+';height:8px;”></td></tr>\n';
-
-  h += '<tr><td style=”'+nb+'”></td>' +
-       '<td rowspan=”2” style=”'+BM+'”>Prietaiso pavadinimas</td>' +
-       '<td rowspan=”2” style=”'+BM+'”>Mat. vnt.</td>' +
-       '<td colspan=”3” style=”'+BC+'”>Prietaisų parodymai</td>' +
-       '<td rowspan=”2” style=”'+BM+'”>Pastabos</td></tr>\n';
-
-  h += '<tr><td style=”'+nb+'”></td>' +
-       '<td style=”'+BM+'”>mėn. pradž.</td>' +
-       '<td style=”'+BM+'”>mėn. gale</td>' +
-       '<td style=”'+BM+'”>skirtumas</td></tr>\n';
-
-  h += '<tr><td style=”'+nb+'”></td>' +
-       '<td rowspan=”3” style=”'+BW+'”>' + eh(heatName) + '</td>' +
-       '<td style=”'+BM+'”>MWh/kWh</td>' +
-       '<td style=”'+BC+'”>' + fn(mwhNuo) + '</td>' +
-       '<td style=”'+BC+'”>' + fn(mwhIki) + '</td>' +
-       '<td style=”'+BC+'”>' + fn(mwhDiff) + '</td>' +
-       '<td style=”'+B+'”></td></tr>\n';
-
-  h += '<tr><td style=”'+nb+'”></td>' +
-       '<td style=”'+BM+'”>m3</td>' +
-       '<td style=”'+BC+'”>' + fn(m3Nuo) + '</td>' +
-       '<td style=”'+BC+'”>' + fn(m3Iki) + '</td>' +
-       '<td style=”'+BC+'”>' + fn(m3Diff) + '</td>' +
-       '<td style=”'+B+'”></td></tr>\n';
-
-  h += '<tr><td style=”'+nb+'”></td>' +
-       '<td style=”'+BM+'”>val</td>' +
-       '<td style=”'+BC+'”>' + fn(hNuo) + '</td>' +
-       '<td style=”'+BC+'”>' + fn(hIki) + '</td>' +
-       '<td style=”'+BC+'”>' + fn(hDiff) + '</td>' +
-       '<td style=”'+B+'”></td></tr>\n';
-
+  /* data table — border=”1” attribute works in Protected View */
+  h += '<table border=”1” cellpadding=”3” style=”border-collapse:collapse;font-size:10pt;font-family:Arial,sans-serif;margin-top:6px;”>';
+  h += '<tr><td></td>' +
+       '<td rowspan=”2” style=”'+M+'”>Prietaiso pavadinimas</td>' +
+       '<td rowspan=”2” style=”'+M+'”>Mat. vnt.</td>' +
+       '<td colspan=”3” style=”'+C+'”>Prietaisų parodymai</td>' +
+       '<td rowspan=”2” style=”'+M+'”>Pastabos</td></tr>';
+  h += '<tr><td></td>' +
+       '<td style=”'+M+'”>mėn. pradž.</td>' +
+       '<td style=”'+M+'”>mėn. gale</td>' +
+       '<td style=”'+M+'”>skirtumas</td></tr>';
+  h += '<tr><td></td>' +
+       '<td rowspan=”3” style=”'+W+'”>' + eh(heatName) + '</td>' +
+       '<td style=”'+M+'”>MWh/kWh</td>' +
+       '<td style=”'+C+'”>' + fn(mwhNuo) + '</td>' +
+       '<td style=”'+C+'”>' + fn(mwhIki) + '</td>' +
+       '<td style=”'+C+'”>' + fn(mwhDiff) + '</td>' +
+       '<td></td></tr>';
+  h += '<tr><td></td>' +
+       '<td style=”'+M+'”>m3</td>' +
+       '<td style=”'+C+'”>' + fn(m3Nuo) + '</td>' +
+       '<td style=”'+C+'”>' + fn(m3Iki) + '</td>' +
+       '<td style=”'+C+'”>' + fn(m3Diff) + '</td>' +
+       '<td></td></tr>';
+  h += '<tr><td></td>' +
+       '<td style=”'+M+'”>val</td>' +
+       '<td style=”'+C+'”>' + fn(hNuo) + '</td>' +
+       '<td style=”'+C+'”>' + fn(hIki) + '</td>' +
+       '<td style=”'+C+'”>' + fn(hDiff) + '</td>' +
+       '<td></td></tr>';
   if (wM !== null) {
-    h += '<tr><td style=”'+nb+'”></td>' +
-         '<td rowspan=”2” style=”'+BW+'”>' + eh(waterName) + '</td>' +
-         '<td rowspan=”2” style=”'+BM+'”>m3</td>' +
-         '<td rowspan=”2” style=”'+BM+'”>' + fn(wNuo) + '</td>' +
-         '<td rowspan=”2” style=”'+BM+'”>' + fn(wIki) + '</td>' +
-         '<td rowspan=”2” style=”'+BM+'”>' + fn(wDiff) + '</td>' +
-         '<td rowspan=”2” style=”'+B+'”></td></tr>\n';
-    h += '<tr><td style=”'+nb+'”></td></tr>\n';
+    h += '<tr><td></td>' +
+         '<td rowspan=”2” style=”'+W+'”>' + eh(waterName) + '</td>' +
+         '<td rowspan=”2” style=”'+M+'”>m3</td>' +
+         '<td rowspan=”2” style=”'+M+'”>' + fn(wNuo) + '</td>' +
+         '<td rowspan=”2” style=”'+M+'”>' + fn(wIki) + '</td>' +
+         '<td rowspan=”2” style=”'+M+'”>' + fn(wDiff) + '</td>' +
+         '<td rowspan=”2”></td></tr>';
+    h += '<tr><td></td></tr>';
   }
+  h += '</table>';
 
-  h += '<tr><td colspan=”4” style=”'+nb+'”></td>' +
-       '<td colspan=”3” style=”text-align:center;border-top:1px solid #000;padding:2px 4px;font-weight:bold;”>Mindaugas Bukauskas</td></tr>\n';
-
-  h += '<tr><td colspan=”4” style=”'+nb+'”></td>' +
-       '<td colspan=”3” style=”'+nb+';text-align:center;”>(atsakingo asmens vardas, pavardė, parašas)</td></tr>\n';
-
-  h += '<tr><td colspan=”6” style=”'+nb+'”></td>' +
-       '<td style=”'+nb+'”>' + eh(entryDate) + '</td></tr>\n';
-
-  h += '<tr><td colspan=”5” style=”'+nb+'”></td>' +
-       '<td colspan=”2” style=”'+nb+'”>(duomenų fiksavimo data)</td></tr>\n';
-
+  /* signature table — no borders */
+  h += '<table cellpadding=”2” style=”font-size:10pt;font-family:Arial,sans-serif;margin-top:8px;”>';
+  h += '<tr><td colspan=”4”></td>' +
+       '<td colspan=”3” style=”text-align:center;border-top:1px solid #000;font-weight:bold;”>Mindaugas Bukauskas</td></tr>';
+  h += '<tr><td colspan=”4”></td>' +
+       '<td colspan=”3” style=”text-align:center;”>(atsakingo asmens vardas, pavardė, parašas)</td></tr>';
+  h += '<tr><td colspan=”6”></td>' +
+       '<td>' + eh(entryDate) + '</td></tr>';
+  h += '<tr><td colspan=”5”></td>' +
+       '<td colspan=”2”>(duomenų fiksavimo data)</td></tr>';
   h += '</table>';
 
   var html = '<html xmlns:o=”urn:schemas-microsoft-com:office:office” xmlns:x=”urn:schemas-microsoft-com:office:excel”>' +
@@ -2165,6 +2157,110 @@ function downloadHeatReport() {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
   toast('Excel ataskaita parsisiųsta!', 'ok');
+}
+
+/* ── HEAT METER PDF REPORT ────────────────────────── */
+function downloadHeatPdf() {
+  var mwhM = null, m3M = null, hM = null, wM = null;
+  meterList.forEach(function(m) {
+    var c = m.meter_types && m.meter_types.code;
+    if      (c === 'heat_mwh' && !mwhM)                       mwhM = m;
+    else if (c === 'heat_m3'  && !m3M)                        m3M  = m;
+    else if (c === 'heat_h'   && !hM)                         hM   = m;
+    else if ((c === 'water_m3' || c === 'hot_water') && !wM)  wM   = m;
+  });
+
+  function getIki(m) { return (m && curR[m.id] && curR[m.id].value_to != null) ? curR[m.id].value_to : null; }
+  function getNuo2(m){ return (m && prevR[m.id] !== undefined) ? prevR[m.id] : null; }
+  function fn(v)     { return (v !== null) ? String(Math.round(v)) : ''; }
+  function eh(s)     { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  var mwhNuo = getNuo2(mwhM), mwhIki = getIki(mwhM), mwhDiff = (mwhNuo!==null&&mwhIki!==null) ? Math.round(mwhIki-mwhNuo) : null;
+  var m3Nuo  = getNuo2(m3M),  m3Iki  = getIki(m3M),  m3Diff  = (m3Nuo!==null&&m3Iki!==null)   ? Math.round(m3Iki-m3Nuo)   : null;
+  var hNuo   = getNuo2(hM),   hIki   = getIki(hM),   hDiff   = (hNuo!==null&&hIki!==null)     ? Math.round(hIki-hNuo)     : null;
+  var wNuo   = getNuo2(wM),   wIki   = getIki(wM),   wDiff   = (wNuo!==null&&wIki!==null)     ? Math.round(wIki-wNuo)     : null;
+
+  var parts = activePeriod.split('-');
+  var year = parts[0], monthNum = parseInt(parts[1]);
+  var mNames = ['sausio','vasario','kovo','balandžio','gegužės','birželio',
+                'liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];
+  var monthStr = mNames[monthNum-1] + ' mėn.';
+  var heatSerial  = (mwhM && mwhM.meter_serial) ? String(mwhM.meter_serial) : '';
+  var waterSerial = (wM   && wM.meter_serial)   ? String(wM.meter_serial)   : '';
+  var heatName    = 'Šilumos skaitiklis  Gamyklinis Nr.  ' + heatSerial;
+  var waterName   = 'Vandens skaitiklis prieš boilerį  Gamyklinis Nr. ' + waterSerial;
+  var lastDay = new Date(parseInt(year), monthNum, 0);
+  var entryDate = year + '-' + String(monthNum).padStart(2,'0') + '-' + String(lastDay.getDate()).padStart(2,'0');
+
+  var css =
+    '@page{size:A4 portrait;margin:18mm 15mm 15mm 15mm}' +
+    '*{box-sizing:border-box}' +
+    'body{font-family:Arial,sans-serif;font-size:10pt;margin:0}' +
+    'table{font-size:10pt;font-family:Arial,sans-serif}' +
+    'table.d{border-collapse:collapse;width:auto}' +
+    'table.d td{border:1px solid #000;padding:3px 6px}' +
+    'td.c{text-align:center}' +
+    'td.m{text-align:center;vertical-align:middle}' +
+    'td.w{text-align:center;vertical-align:middle;word-break:break-word}' +
+    '.sig{margin-top:14pt;display:flex;justify-content:flex-end}' +
+    '.sig-block{text-align:center;font-size:10pt}' +
+    '.sig-name{border-top:1px solid #000;padding:2pt 30pt;font-weight:bold}' +
+    '.lbl{font-size:8pt;color:#333}' +
+    '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+
+  var wRows = '';
+  if (wM !== null) {
+    wRows = '<tr><td></td><td rowspan="2" class="w">' + eh(waterName) + '</td>' +
+            '<td rowspan="2" class="m">m3</td>' +
+            '<td rowspan="2" class="m">' + fn(wNuo) + '</td>' +
+            '<td rowspan="2" class="m">' + fn(wIki) + '</td>' +
+            '<td rowspan="2" class="m">' + fn(wDiff) + '</td>' +
+            '<td rowspan="2"></td></tr><tr><td></td></tr>';
+  }
+
+  var html =
+    '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Šilumos ataskaita</title>' +
+    '<style>' + css + '</style></head><body>' +
+    '<table cellpadding="2"><tr>' +
+      '<td colspan="3"></td>' +
+      '<td colspan="3" style="font-weight:bold">UAB &ldquo;Mano Būstas Vakarai&rdquo;</td>' +
+      '<td style="font-weight:bold">219</td></tr>' +
+    '<tr><td colspan="3"></td><td colspan="3" class="lbl">(vardas, pavardė)</td><td class="lbl">(kodas)</td></tr>' +
+    '<tr><td colspan="3"></td><td colspan="4" style="font-weight:bold">' + eh(selAddr.name) + '</td></tr>' +
+    '<tr><td colspan="3"></td><td colspan="4" class="lbl">(adresas)</td></tr>' +
+    '<tr><td></td><td colspan="6" style="font-weight:bold">APSKAITOS PRIETAISŲ PARODYMAI ' + year + ' m. ' + monthStr + '</td></tr>' +
+    '</table>' +
+    '<table class="d" style="margin-top:8pt">' +
+      '<tr><td></td>' +
+        '<td rowspan="2" class="m">Prietaiso pavadinimas</td>' +
+        '<td rowspan="2" class="m">Mat. vnt.</td>' +
+        '<td colspan="3" class="c">Prietaisų parodymai</td>' +
+        '<td rowspan="2" class="m">Pastabos</td></tr>' +
+      '<tr><td></td>' +
+        '<td class="m">mėn. pradž.</td>' +
+        '<td class="m">mėn. gale</td>' +
+        '<td class="m">skirtumas</td></tr>' +
+      '<tr><td></td><td rowspan="3" class="w">' + eh(heatName) + '</td>' +
+        '<td class="m">MWh/kWh</td>' +
+        '<td class="c">' + fn(mwhNuo) + '</td><td class="c">' + fn(mwhIki) + '</td><td class="c">' + fn(mwhDiff) + '</td><td></td></tr>' +
+      '<tr><td></td><td class="m">m3</td>' +
+        '<td class="c">' + fn(m3Nuo) + '</td><td class="c">' + fn(m3Iki) + '</td><td class="c">' + fn(m3Diff) + '</td><td></td></tr>' +
+      '<tr><td></td><td class="m">val</td>' +
+        '<td class="c">' + fn(hNuo) + '</td><td class="c">' + fn(hIki) + '</td><td class="c">' + fn(hDiff) + '</td><td></td></tr>' +
+      wRows +
+    '</table>' +
+    '<div class="sig"><div class="sig-block">' +
+      '<div class="sig-name">Mindaugas Bukauskas</div>' +
+      '<div class="lbl">(atsakingo asmens vardas, pavardė, parašas)</div>' +
+      '<div style="margin-top:8pt">' + eh(entryDate) + '</div>' +
+      '<div class="lbl">(duomenų fiksavimo data)</div>' +
+    '</div></div>' +
+    '<script>window.onload=function(){window.print();}<\/script>' +
+    '</body></html>';
+
+  var w = window.open('', '_blank', 'width=900,height=700');
+  if (w) { w.document.write(html); w.document.close(); }
+  else toast('Naršyklė blokavo langą — leiskite popup', 'err');
 }
 
 /* ── CSV EXPORT ───────────────────────────────────── */

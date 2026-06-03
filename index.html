@@ -673,7 +673,7 @@ function loadApts(addrId) {
       var mIds = meterList.map(function(m) { return m.id; }).join(',');
       /* readings for the active period */
       return sbGet(
-        'readings?select=id,meter_id,value_from,value_to,note,created_at' +
+        'readings?select=id,meter_id,value_from,value_to,note' +
         '&meter_id=in.(' + mIds + ')&period=eq.' + activePeriod
       );
     })
@@ -2059,18 +2059,10 @@ function downloadHeatReport() {
   var heatName    = 'Šilumos skaitiklis  Gamyklinis Nr.  ' + heatSerial;
   var waterName   = 'Vandens skaitiklis prieš boilerį  Gamyklinis Nr. ' + waterSerial;
 
-  /* Date: created_at of the MWh reading, else last day of period */
-  var entryDate = '';
-  if (mwhM && curR[mwhM.id] && curR[mwhM.id].created_at) {
-    var d = new Date(curR[mwhM.id].created_at);
-    entryDate = d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
-  } else {
-    var lastDay = new Date(parseInt(year), monthNum, 0);
-    entryDate = year + '-' + String(monthNum).padStart(2, '0') + '-' +
-      String(lastDay.getDate()).padStart(2, '0');
-  }
+  /* Date: last day of the period month */
+  var lastDay = new Date(parseInt(year), monthNum, 0);
+  var entryDate = year + '-' + String(monthNum).padStart(2, '0') + '-' +
+    String(lastDay.getDate()).padStart(2, '0');
 
   /* SpreadsheetML helpers */
   var BORD = '<Borders>' +

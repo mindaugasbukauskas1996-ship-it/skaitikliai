@@ -2074,7 +2074,6 @@ function downloadHeatReport() {
 
   var styles =
     '<Styles>' +
-    '<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Bottom"/><Borders/><Font ss:FontName="Calibri" ss:Size="11"/></Style>' +
     '<Style ss:ID="s151"><Font ss:Bold="1"/></Style>' +
     '<Style ss:ID="s107"><Borders/></Style>' +
     '<Style ss:ID="s77"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' + BORD + '</Style>' +
@@ -2095,7 +2094,7 @@ function downloadHeatReport() {
     if (v === '' || v == null) return '<Cell' + attrs + '/>';
     var isNum = typeof v === 'number';
     return '<Cell' + attrs + '><Data ss:Type="' + (isNum ? 'Number' : 'String') + '">' +
-      String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+      String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') +
       '</Data></Cell>';
   }
   function xn(v, style, extra) {

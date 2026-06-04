@@ -1789,16 +1789,14 @@ function exportCalcXlsx() {
   var rows     = resDiv._rows;
   var bnoKwh   = resDiv._bnoKwh  || 0;
 
-  /* price is in cell B3 — EUR columns use =col*$B$3 formula */
-  var DATA_START_ROW = 6; /* rows 1-4 = header, row 5 = col headers */
   var xn = function(v) { return String(v).replace('.', ','); }; /* decimal dot → comma */
 
   /* Columns: A=Butas B=Abonentas C=K.V.m³ D=K.V.kWh E=Šild.NUO F=Šild.IKI G=Šild.Δ H=Šild.kWh I=EUR K.V. J=EUR Šild. K=Suma EUR */
-  var buildSection = function(sRows, sBnoKwh, sAddr, offset) {
+  var buildSection = function(sRows, sBnoKwh, sAddr) {
     var tbl = '';
     tbl += '<tr><td><b>Adresas</b></td><td colspan="10">' + sAddr + '</td></tr>';
     tbl += '<tr><td><b>Mėnuo</b></td><td colspan="10">' + month + '</td></tr>';
-    tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + xn(price) + '</td><td colspan="9"></td></tr>';
+    tbl += '<tr><td><b>Kaina EUR/kWh</b></td><td>' + xn(price.toFixed(3)) + '</td><td colspan="9"></td></tr>';
     tbl += '<tr><td colspan="11"></td></tr>';
     tbl += '<tr>' +
       '<th>Butas</th><th>Abonentas</th><th>K.V. m³</th><th>K.V. kWh</th>' +
@@ -1806,10 +1804,15 @@ function exportCalcXlsx() {
       '<th>EUR už K.V.</th><th>EUR už Šild.</th><th>Suma EUR</th>' +
       '</tr>';
 
-    var dataR = offset + DATA_START_ROW - 1;
+    var sumKvKwh = 0, sumHeatKwh = 0, sumAptEur = 0;
     sRows.forEach(function(row) {
-      dataR++;
-      var aptLbl = String(row.apt.apt_label || row.apt.number || row.apt.id);
+      var kvEur   = +(row.kvKwh   * price).toFixed(2);
+      var heatEur = +(row.heatKwh * price).toFixed(2);
+      var sumaEur = +((row.kvKwh + row.heatKwh) * price).toFixed(2);
+      sumKvKwh   += row.kvKwh;
+      sumHeatKwh += row.heatKwh;
+      sumAptEur  += sumaEur;
+      var aptLbl  = String(row.apt.apt_label || row.apt.number || row.apt.id);
       tbl += '<tr>' +
         '<td>' + aptLbl + '</td>' +
         '<td>' + (row.apt.tenant_name || '') + '</td>' +
@@ -1819,59 +1822,53 @@ function exportCalcXlsx() {
         '<td>' + Math.round(row.iki) + '</td>' +
         '<td>' + Math.round(row.delta) + '</td>' +
         '<td>' + Math.round(row.heatKwh) + '</td>' +
-        '<td>=ROUND(D' + dataR + '*$B$3,2)</td>' +
-        '<td>=ROUND(H' + dataR + '*$B$3,2)</td>' +
-        '<td>=ROUND(I' + dataR + '+J' + dataR + ',2)</td>' +
+        '<td>' + xn(kvEur.toFixed(2)) + '</td>' +
+        '<td>' + xn(heatEur.toFixed(2)) + '</td>' +
+        '<td>' + xn(sumaEur.toFixed(2)) + '</td>' +
         '</tr>';
     });
 
-    var bnoR = dataR + 1;
+    var bnoEur   = +(sBnoKwh * price).toFixed(2);
+    var visoSuma = +(sumAptEur + bnoEur).toFixed(2);
+    var visoKwh  = Math.round(sumKvKwh + sumHeatKwh + sBnoKwh);
+
     tbl += '<tr>' +
-      '<td><b>BNO</b></td>' +
-      '<td>BNO patalpų</td>' +
-      '<td></td>' +   /* K.V. m³ */
-      '<td></td>' +   /* K.V. kWh */
-      '<td></td>' +   /* Šild. NUO */
-      '<td></td>' +   /* Šild. IKI */
-      '<td></td>' +   /* Šild. Δ */
+      '<td><b>BNO</b></td><td>BNO patalpų</td>' +
+      '<td></td><td></td><td></td><td></td><td></td>' +
       '<td>' + Math.round(sBnoKwh) + '</td>' +
       '<td>—</td>' +
-      '<td>=ROUND(H' + bnoR + '*$B$3,2)</td>' +
-      '<td>=ROUND(H' + bnoR + '*$B$3,2)</td>' +
+      '<td>' + xn(bnoEur.toFixed(2)) + '</td>' +
+      '<td>' + xn(bnoEur.toFixed(2)) + '</td>' +
       '</tr>';
     tbl += '<tr><td colspan="10"><b>Viso suma už elektrą</b></td>' +
-      '<td><b>=SUM(K' + (offset + DATA_START_ROW) + ':K' + bnoR + ')</b></td></tr>';
-    var visoR = bnoR + 1;
+      '<td><b>' + xn(visoSuma.toFixed(2)) + '</b></td></tr>';
     tbl += '<tr><td colspan="7"><b>Viso kWh sunaudota</b></td>' +
-      '<td>=SUM(D' + (offset + DATA_START_ROW) + ':D' + bnoR + ')+SUM(H' + (offset + DATA_START_ROW) + ':H' + bnoR + ')</td>' +
-      '<td colspan="3"></td></tr>';
+      '<td>' + visoKwh + '</td><td colspan="3"></td></tr>';
     tbl += '<tr><td colspan="11"></td></tr>';
-    /* summary section */
-    var pc    = '$B$' + (offset + 3);
-    var dFrom = offset + DATA_START_ROW;
-    var dTo   = bnoR - 1;
-    var s1R   = bnoR + 5;
-    var s2R   = bnoR + 6;
-    var s3R   = bnoR + 7;
+
+    /* summary block */
+    var sumHeatR = Math.round(sumHeatKwh);
+    var sumKvR   = Math.round(sumKvKwh);
+    var bnoKwhR  = Math.round(sBnoKwh);
     tbl += '<tr><td colspan="3"></td><td><b>kWh</b></td><td><b>Eur</b></td><td colspan="6"></td></tr>';
     tbl += '<tr><td colspan="3">Viso sunaudota elektros butų šildymui:</td>' +
-      '<td>=SUM(H' + dFrom + ':H' + dTo + ')</td>' +
-      '<td>=ROUND(D' + s1R + '*' + pc + ',2)</td>' +
+      '<td>' + sumHeatR + '</td>' +
+      '<td>' + xn((sumHeatR * price).toFixed(2)) + '</td>' +
       '<td colspan="6"></td></tr>';
     tbl += '<tr><td colspan="3">Viso sunaudota elektros karštam vandeniui:</td>' +
-      '<td>=SUM(D' + dFrom + ':D' + dTo + ')</td>' +
-      '<td>=ROUND(D' + s2R + '*' + pc + ',2)</td>' +
+      '<td>' + sumKvR + '</td>' +
+      '<td>' + xn((sumKvR * price).toFixed(2)) + '</td>' +
       '<td colspan="6"></td></tr>';
     tbl += '<tr><td colspan="3">BNO su nepaskirstymu šildymu kwh:</td>' +
-      '<td>=$H$' + bnoR + '</td>' +
-      '<td>=ROUND(D' + s3R + '*' + pc + ',2)</td>' +
+      '<td>' + bnoKwhR + '</td>' +
+      '<td>' + xn((bnoKwhR * price).toFixed(2)) + '</td>' +
       '<td colspan="6"></td></tr>';
     tbl += '<tr><td colspan="11"></td></tr>';
-    return { tbl: tbl, nextOffset: s3R + 2 };
+    return { tbl: tbl };
   };
 
   var tbl = '<table border="1" style="border-collapse:collapse;">';
-  var res = buildSection(rows, bnoKwh, addrName, 0);
+  var res = buildSection(rows, bnoKwh, addrName);
   tbl += res.tbl;
   tbl += '</table>';
 

@@ -122,7 +122,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .heat-excel-btn:hover{background:#0369a1;color:#fff;}
 .heat-pdf-btn{border-color:#7c3aed;background:#ede9fe;color:#7c3aed;}
 .heat-pdf-btn:hover{background:#7c3aed;color:#fff;}
-.all-heat-bar{padding:8px 16px 4px;display:flex;gap:8px;align-items:center;}
+.all-heat-bar{padding:10px 12px;display:flex;flex-direction:column;gap:0;background:#fff;border-bottom:1px solid var(--border);}
 
 /* ── BOTTOM NAV ── */
 .btm{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:200;}
@@ -202,8 +202,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="loading"><div class="spinner"></div>Kraunama...</div>
   </div>
   <div id="all-heat-bar" class="all-heat-bar hidden">
-    <input type="month" id="all-heat-period" class="period-inp" style="flex:0 0 140px;">
-    <button class="heat-excel-btn heat-pdf-btn" style="flex:1;" onclick="downloadAllHeatPdf()">&#x1F4C4; Visų šilumos ataskaitų PDF</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;width:100%;">
+      <label for="all-heat-period" style="font-size:.78rem;font-weight:700;color:var(--muted);white-space:nowrap;">Mėnuo:</label>
+      <input type="month" id="all-heat-period" style="flex:1;border:1.5px solid var(--inp-b);border-radius:8px;padding:8px 10px;font-size:.9rem;font-weight:700;background:var(--inp);outline:none;color:var(--text);font-family:inherit;cursor:pointer;min-width:0;">
+    </div>
+    <button class="heat-excel-btn heat-pdf-btn" style="width:100%;" onclick="downloadAllHeatPdf()">&#x1F4C4; Visų šilumos ataskaitų PDF</button>
   </div>
   <div class="btm-spacer hidden" id="addr-spacer"></div>
 </div>

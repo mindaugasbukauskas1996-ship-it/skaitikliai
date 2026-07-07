@@ -123,6 +123,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .heat-pdf-btn{border-color:#7c3aed;background:#ede9fe;color:#7c3aed;}
 .heat-pdf-btn:hover{background:#7c3aed;color:#fff;}
 .all-heat-bar{padding:8px 12px;background:#fff;border-bottom:1px solid var(--border);}
+.addr-period-nav{display:flex;align-items:center;gap:6px;padding:6px 12px 2px;}
+.addr-period-nav .apn-btn{background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:5px 13px;font-size:.92rem;font-weight:700;cursor:pointer;color:var(--text);font-family:inherit;min-height:36px;flex-shrink:0;}
+.addr-period-nav .apn-btn:disabled{opacity:.3;cursor:default;}
+.addr-period-nav .apn-lbl{flex:1;text-align:center;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;}
 .modal-box{background:#fff;border-radius:16px;padding:22px 20px;width:90%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.25);}
 .modal-title{font-size:.97rem;font-weight:700;margin-bottom:14px;}
@@ -200,7 +204,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <!-- ── SCREEN: ADDRESSES ── -->
 <div id="screen-addresses" class="screen">
-  <div class="section-lbl" id="addr-period-lbl"></div>
+  <div class="addr-period-nav" id="addr-period-nav">
+    <button class="apn-btn" id="apn-prev" onclick="changeListPeriod(-1)">&#8592;</button>
+    <div class="apn-lbl" id="addr-period-lbl"></div>
+    <button class="apn-btn" id="apn-next" onclick="changeListPeriod(1)">&#8594;</button>
+  </div>
   <div class="addr-grid" id="addr-grid">
     <div class="loading"><div class="spinner"></div>Kraunama...</div>
   </div>
@@ -359,6 +367,7 @@ var prevR          = {};     /* meter_id -> value_to (most recent any period) */
 var curR           = {};     /* meter_id -> reading row for CUR_PERIOD */
 var curFilter      = 'all';
 var activePeriod   = CUR_PERIOD;  /* can be changed by admin */
+var listPeriod     = CUR_PERIOD;  /* period shown in address list */
 
 /* ── SUPABASE HELPERS ─────────────────────────────── */
 function sbHead() {
@@ -488,6 +497,43 @@ function addrMeta(name) {
   return { type: 'heat', sort: 1, icon: '🌡️', sub: 'Šilumos skaitikliai' };
 }
 
+function updateAddrPeriodNav() {
+  var pts = listPeriod.split('-');
+  var lbl = MEN[parseInt(pts[1], 10)] + ' ' + pts[0];
+  document.getElementById('addr-period-lbl').textContent = lbl;
+  var nextBtn = document.getElementById('apn-next');
+  if (nextBtn) nextBtn.disabled = listPeriod >= CUR_PERIOD;
+  /* hide nav arrows for non-admin (tech sees only current month) */
+  var nav = document.getElementById('addr-period-nav');
+  if (nav) {
+    var prevBtn = document.getElementById('apn-prev');
+    if (userRole !== 'admin') {
+      if (prevBtn) prevBtn.classList.add('hidden');
+      if (nextBtn) nextBtn.classList.add('hidden');
+    } else {
+      if (prevBtn) prevBtn.classList.remove('hidden');
+      if (nextBtn) nextBtn.classList.remove('hidden');
+    }
+  }
+}
+
+function changeListPeriod(dir) {
+  var pts = listPeriod.split('-');
+  var yr  = parseInt(pts[0], 10);
+  var mo  = parseInt(pts[1], 10) + dir;
+  if (mo < 1)  { mo = 12; yr--; }
+  if (mo > 12) { mo = 1;  yr++; }
+  var np = yr + '-' + (mo < 10 ? '0' : '') + mo;
+  if (np > CUR_PERIOD) return;
+  listPeriod = np;
+  updateAddrPeriodNav();
+  /* reset progress dots — they'll update when each address is opened */
+  addrList.forEach(function(a) {
+    var el = document.getElementById('ap-' + a.id);
+    if (el) el.textContent = '—';
+  });
+}
+
 function goToAddresses() {
   showScreen('screen-addresses');
   var badge = document.getElementById('role-badge');
@@ -496,7 +542,7 @@ function goToAddresses() {
   document.getElementById('hdr-right').classList.remove('hidden');
   document.getElementById('hdr-done').textContent = '—';
   setHdr('Skaitikliai', 'Pasirinkite adresą', true, false);
-  document.getElementById('addr-period-lbl').textContent = CUR_LABEL;
+  updateAddrPeriodNav();
 
   if (userRole === 'admin') {
     document.getElementById('btm-nav').classList.remove('hidden');
@@ -566,7 +612,7 @@ function openAddress(addr) {
   prevR         = {};
   curR          = {};
   curFilter     = 'all';
-  activePeriod  = CUR_PERIOD;
+  activePeriod  = listPeriod;
 
   var hBar = document.getElementById('heat-excel-bar');
   if (hBar) {

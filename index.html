@@ -116,6 +116,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .save-btn.done{background:var(--green);}
 .save-btn:disabled{background:#9ca3af;cursor:default;}
 
+/* ── HEAT REPORT BUTTONS ── */
+.heat-excel-bar{padding:8px 16px 0;display:flex;gap:8px;}
+.heat-excel-btn{flex:1;padding:10px;border:1.5px solid #0369a1;border-radius:10px;background:#e0f2fe;color:#0369a1;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;}
+.heat-excel-btn:hover{background:#0369a1;color:#fff;}
+.heat-pdf-btn{border-color:#7c3aed;background:#ede9fe;color:#7c3aed;}
+.heat-pdf-btn:hover{background:#7c3aed;color:#fff;}
+.all-heat-bar{padding:8px 16px 4px;display:flex;gap:8px;align-items:center;}
+
 /* ── BOTTOM NAV ── */
 .btm{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;z-index:200;}
 .btm-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:9px 4px;cursor:pointer;font-size:.67rem;font-weight:700;color:var(--muted);gap:2px;border:none;background:none;min-height:56px;font-family:inherit;}
@@ -193,6 +201,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="addr-grid" id="addr-grid">
     <div class="loading"><div class="spinner"></div>Kraunama...</div>
   </div>
+  <div id="all-heat-bar" class="all-heat-bar hidden">
+    <input type="month" id="all-heat-period" class="period-inp" style="flex:0 0 140px;">
+    <button class="heat-excel-btn heat-pdf-btn" style="flex:1;" onclick="downloadAllHeatPdf()">&#x1F4C4; Visų šilumos ataskaitų PDF</button>
+  </div>
   <div class="btm-spacer hidden" id="addr-spacer"></div>
 </div>
 
@@ -211,6 +223,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="tbtn on" id="f-all">Visi</button>
     <button class="tbtn" id="f-pending">Liko</button>
     <button class="tbtn" id="f-done">Atlikta</button>
+  </div>
+  <div id="heat-excel-bar" class="heat-excel-bar hidden">
+    <button class="heat-excel-btn" onclick="downloadHeatReport()">&#x1F4CA; Excel ataskaita</button>
+    <button class="heat-excel-btn heat-pdf-btn" onclick="downloadHeatPdf()">&#x1F4C4; PDF ataskaita</button>
   </div>
   <div class="section-lbl">Butai</div>
   <div id="apt-list">
@@ -443,9 +459,11 @@ function chooseRole(role) {
 /* ── ADDRESS LIST ─────────────────────────────────── */
 function addrMeta(name) {
   var n = (name || '').toLowerCase();
-  /* electricity: Žemaitės g. and Basanavičiaus g. patterns */
-  if (n.indexOf('žemait') >= 0 || n.indexOf('zemait') >= 0 ||
-      n.indexOf('basanav') >= 0) {
+  /* electricity: Žemaitės g. (except nr. 3) and Basanavičiaus g. patterns */
+  if ((n.indexOf('žemait') >= 0 || n.indexOf('zemait') >= 0) && n.indexOf(' 3') < 0) {
+    return { type: 'elec', sort: 0, icon: '⚡', sub: 'Elektros skaitikliai' };
+  }
+  if (n.indexOf('basanav') >= 0) {
     return { type: 'elec', sort: 0, icon: '⚡', sub: 'Elektros skaitikliai' };
   }
   /* water/hot-water: Karališkių pattern */
@@ -509,6 +527,20 @@ function renderAddresses() {
     })(a));
     grid.appendChild(card);
   });
+
+  if (userRole === 'admin') {
+    var hasHeat = addrList.some(function(a) { return addrMeta(a.name).type === 'heat'; });
+    var bar = document.getElementById('all-heat-bar');
+    if (bar) {
+      if (hasHeat) {
+        bar.classList.remove('hidden');
+        var inp = document.getElementById('all-heat-period');
+        if (inp && !inp.value) inp.value = prevMonthOf(CUR_PERIOD);
+      } else {
+        bar.classList.add('hidden');
+      }
+    }
+  }
 }
 
 /* ── OPEN ADDRESS → APARTMENTS ───────────────────── */
@@ -526,6 +558,12 @@ function openAddress(addr) {
   curR          = {};
   curFilter     = 'all';
   activePeriod  = CUR_PERIOD;
+
+  var hBar = document.getElementById('heat-excel-bar');
+  if (hBar) {
+    if (addrMeta(addr.name).type === 'heat') hBar.classList.remove('hidden');
+    else hBar.classList.add('hidden');
+  }
 
   showScreen('screen-apartments');
   setHdr(addr.name, periodToLabel(activePeriod), true, true);
@@ -1655,6 +1693,218 @@ function exportCalcCsv() {
   var resDiv = document.getElementById('calc-results');
   if (!resDiv || !resDiv._xlsxData) return;
   exportCsv(resDiv._xlsxData, 'elektra_' + resDiv._month);
+}
+
+/* ── HEAT REPORT ─────────────────────────────────── */
+function prevMonthOf(period) {
+  var pts = period.split('-');
+  var yr = parseInt(pts[0], 10);
+  var mo = parseInt(pts[1], 10) - 1;
+  if (mo < 1) { mo = 12; yr--; }
+  return yr + '-' + (mo < 10 ? '0' : '') + mo;
+}
+
+function loadHeatAddrData(addr, period) {
+  return sbGet('apartments?select=id,number,tenant_name,apt_label&address_id=eq.' + addr.id + '&order=number')
+    .then(function(apts) {
+      if (!apts.length) return { apts: [], meters: [], rm: {} };
+      var ids = apts.map(function(a) { return a.id; }).join(',');
+      return sbGet('meters?select=id,apartment_id,meter_serial,meter_types(code,label,unit)&apartment_id=in.(' + ids + ')')
+        .then(function(ms) {
+          if (!ms.length) return { apts: apts, meters: [], rm: {} };
+          var mIds = ms.map(function(m) { return m.id; }).join(',');
+          return sbGet('readings?select=meter_id,value_from,value_to,note&meter_id=in.(' + mIds + ')&period=eq.' + period)
+            .then(function(rds) {
+              var rm = {};
+              rds.forEach(function(r) { rm[r.meter_id] = r; });
+              return { apts: apts, meters: ms, rm: rm };
+            });
+        });
+    });
+}
+
+function buildHeatReportInner(addr, period, data) {
+  var pts  = period.split('-');
+  var mLbl = (MEN[parseInt(pts[1], 10)] || pts[1]) + ' ' + pts[0];
+  var apts = data.apts, meters = data.meters, rm = data.rm;
+
+  var rows = '';
+  var totalDelta = 0;
+  var unit = '';
+  var rn = 1;
+
+  apts.forEach(function(apt) {
+    var aptMs = meters.filter(function(m) { return m.apartment_id === apt.id; });
+    aptMs.forEach(function(m) {
+      if (!unit && m.meter_types) unit = m.meter_types.unit;
+      var r     = rm[m.id];
+      var nuo   = r ? Number(r.value_from) : null;
+      var iki   = r ? Number(r.value_to)   : null;
+      var delta = (nuo !== null && iki !== null) ? (Math.round((iki - nuo) * 1000) / 1000) : null;
+      if (delta !== null) totalDelta += delta;
+      var aptLbl = apt.apt_label || apt.number;
+      rows +=
+        '<tr>' +
+        '<td style="text-align:center">' + rn++ + '</td>' +
+        '<td><b>' + esc(String(aptLbl)) + '</b></td>' +
+        '<td>' + esc(apt.tenant_name || '—') + '</td>' +
+        '<td>' + esc((r && r.note) ? r.note : '') + '</td>' +
+        '<td style="text-align:right">' + (nuo !== null ? nuo : '<span style="color:#dc2626">—</span>') + '</td>' +
+        '<td style="text-align:right">' + (iki !== null ? iki : '<span style="color:#dc2626">—</span>') + '</td>' +
+        '<td style="text-align:right"><b>' + (delta !== null ? delta : '—') + '</b></td>' +
+        '</tr>';
+    });
+  });
+
+  var unitLbl = unit ? ' (' + unit + ')' : '';
+  return '<h3 style="text-align:center;margin:0 0 4px">' + esc(addr.name) + '</h3>' +
+    '<p style="text-align:center;color:#555;margin:0 0 12px;font-size:10pt">Šilumos skaitikliai &middot; ' + mLbl + '</p>' +
+    '<table border="1" style="width:100%;border-collapse:collapse;font-size:10pt;">' +
+    '<thead><tr style="background:#1f2937;color:#fff;">' +
+    '<th style="padding:5px 7px;width:32px">Nr.</th>' +
+    '<th style="padding:5px 7px">Butas</th>' +
+    '<th style="padding:5px 7px">Abonento vardas</th>' +
+    '<th style="padding:5px 7px">Pastabos</th>' +
+    '<th style="padding:5px 7px">NUO</th>' +
+    '<th style="padding:5px 7px">IKI</th>' +
+    '<th style="padding:5px 7px">&Delta;' + esc(unitLbl) + '</th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '<tfoot><tr style="background:#f3f4f6;">' +
+    '<td colspan="6" style="padding:5px 7px;font-weight:700;text-align:right">Iš viso:</td>' +
+    '<td style="padding:5px 7px;font-weight:700;text-align:right">' + (Math.round(totalDelta * 1000) / 1000) + esc(unit ? ' ' + unit : '') + '</td>' +
+    '</tr></tfoot></table>' +
+    '<div style="margin-top:28px;display:flex;justify-content:space-between;font-size:10pt;">' +
+    '<div>Atsakingas: Mindaugas Bukauskas</div>' +
+    '<div>Duomenų fiksavimo data: ' + mLbl + '</div>' +
+    '</div>';
+}
+
+function downloadHeatReport() {
+  if (!selAddr) return;
+  var period = activePeriod;
+  toast('Kraunama…', '');
+  loadHeatAddrData(selAddr, period)
+    .then(function(data) {
+      var pts  = period.split('-');
+      var mLbl = (MEN[parseInt(pts[1], 10)] || pts[1]) + ' ' + pts[0];
+      var apts = data.apts, meters = data.meters, rm = data.rm;
+
+      var xlsRows = [['Nr.', 'Butas', 'Abonento vardas', 'Pastabos', 'NUO', 'IKI', 'Δ']];
+      var totalDelta = 0;
+      var unit = '';
+      var rn = 1;
+
+      apts.forEach(function(apt) {
+        var aptMs = meters.filter(function(m) { return m.apartment_id === apt.id; });
+        aptMs.forEach(function(m) {
+          if (!unit && m.meter_types) unit = m.meter_types.unit;
+          var r     = rm[m.id];
+          var nuo   = r ? Number(r.value_from) : '';
+          var iki   = r ? Number(r.value_to)   : '';
+          var delta = (nuo !== '' && iki !== '') ? (Math.round((iki - nuo) * 1000) / 1000) : '';
+          if (delta !== '') totalDelta += delta;
+          xlsRows.push([rn++, apt.apt_label || apt.number, apt.tenant_name || '', (r && r.note) ? r.note : '', nuo, iki, delta]);
+        });
+      });
+      xlsRows.push(['', '', '', '', '', 'Iš viso:', (Math.round(totalDelta * 1000) / 1000) + (unit ? ' ' + unit : '')]);
+
+      var tbl = '<table border="1" style="border-collapse:collapse;">';
+      xlsRows.forEach(function(row, ri) {
+        tbl += '<tr>';
+        row.forEach(function(cell) {
+          var tag = ri === 0 ? 'th' : 'td';
+          tbl += '<' + tag + '>' + (cell == null ? '' : String(cell).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')) + '</' + tag + '>';
+        });
+        tbl += '</tr>';
+      });
+      tbl += '</table>';
+
+      var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+        '<head><meta charset="UTF-8"></head><body>' + tbl + '</body></html>';
+      var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      var url  = URL.createObjectURL(blob);
+      var a    = document.createElement('a');
+      a.href     = url;
+      a.download = selAddr.name + '.xls';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Excel eksportuotas!', 'ok');
+    })
+    .catch(function(e) { toast('Klaida: ' + e.message, 'er'); });
+}
+
+function downloadHeatPdf() {
+  if (!selAddr) return;
+  var period = activePeriod;
+  toast('Kraunama…', '');
+  loadHeatAddrData(selAddr, period)
+    .then(function(data) {
+      var inner = buildHeatReportInner(selAddr, period, data);
+      var win = window.open('', '_blank');
+      win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(selAddr.name) + '</title>' +
+        '<style>body{font-family:Arial,sans-serif;padding:12mm;}' +
+        '@media print{@page{margin:10mm;}body{padding:0;}}' +
+        'table{width:100%}th,td{padding:5px 7px}' +
+        'tr:nth-child(even) td{background:#f9f9f9}' +
+        '</style></head><body>' + inner +
+        '<script>window.onload=function(){window.print();}<\/script></body></html>');
+      win.document.close();
+    })
+    .catch(function(e) { toast('Klaida: ' + e.message, 'er'); });
+}
+
+function downloadAllHeatPdf() {
+  var periodInp = document.getElementById('all-heat-period');
+  var period = periodInp ? periodInp.value : CUR_PERIOD;
+  if (!period) { toast('Pasirinkite mėnesį!', 'er'); return; }
+
+  var heatAddrs = addrList.filter(function(a) { return addrMeta(a.name).type === 'heat'; });
+  if (!heatAddrs.length) { toast('Nėra šilumos adresų!', 'er'); return; }
+
+  toast('Kraunama…', '');
+
+  var idx   = 0;
+  var pages = [];
+
+  function next() {
+    if (idx >= heatAddrs.length) {
+      var pts  = period.split('-');
+      var mLbl = (MEN[parseInt(pts[1], 10)] || pts[1]) + ' ' + pts[0];
+      var win  = window.open('', '_blank');
+      win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+        '<title>Šilumos ataskaitos · ' + esc(mLbl) + '</title>' +
+        '<style>' +
+        'body{font-family:Arial,sans-serif;margin:0;padding:0;}' +
+        '.page{padding:12mm;page-break-after:always;}' +
+        '.page:last-child{page-break-after:avoid;}' +
+        '@media print{@page{margin:0;}.page{padding:12mm;}}' +
+        'table{width:100%;border-collapse:collapse;font-size:10pt;}' +
+        'th,td{padding:5px 7px;}' +
+        'tr:nth-child(even) td{background:#f9f9f9;}' +
+        '</style></head><body>');
+      pages.forEach(function(p) {
+        win.document.write('<div class="page">' + p + '</div>');
+      });
+      win.document.write('<script>window.onload=function(){window.print();}<\/script></body></html>');
+      win.document.close();
+      toast('PDF atidarytas!', 'ok');
+      return;
+    }
+    var addr = heatAddrs[idx++];
+    loadHeatAddrData(addr, period)
+      .then(function(data) {
+        pages.push(buildHeatReportInner(addr, period, data));
+        next();
+      })
+      .catch(function() {
+        pages.push('<h3>' + esc(addr.name) + '</h3><p style="color:#dc2626">Klaida kraunant duomenis</p>');
+        next();
+      });
+  }
+
+  next();
 }
 
 /* ── CSV EXPORT ───────────────────────────────────── */

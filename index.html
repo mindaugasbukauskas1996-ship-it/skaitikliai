@@ -1784,60 +1784,122 @@ function loadHeatAddrData(addr, period) {
 }
 
 function buildHeatReportInner(addr, period, data) {
+  var MEN_GEN = ['','sausio','vasario','kovo','balandžio','gegužės','birželio',
+                 'liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];
   var pts  = period.split('-');
-  var mLbl = (MEN[parseInt(pts[1], 10)] || pts[1]) + ' ' + pts[0];
-  var apts = data.apts, meters = data.meters, rm = data.rm;
+  var yr   = parseInt(pts[0], 10);
+  var mo   = parseInt(pts[1], 10);
+  var mGen = MEN_GEN[mo] || pts[1];
+  var pad  = function(n) { return n < 10 ? '0' + n : String(n); };
+  var lastDay  = new Date(yr, mo, 0).getDate();
+  var lastDate = yr + '-' + pad(mo) + '-' + pad(lastDay);
 
-  var rows = '';
-  var totalDelta = 0;
-  var unit = '';
-  var rn = 1;
+  var apts   = data.apts;
+  var meters = data.meters;
+  var rm     = data.rm;
+  var aptPages = [];
 
   apts.forEach(function(apt) {
     var aptMs = meters.filter(function(m) { return m.apartment_id === apt.id; });
+    if (!aptMs.length) return;
+
+    var groupMap   = {};
+    var groupOrder = [];
     aptMs.forEach(function(m) {
-      if (!unit && m.meter_types) unit = m.meter_types.unit;
-      var r     = rm[m.id];
-      var nuo   = r ? Number(r.value_from) : null;
-      var iki   = r ? Number(r.value_to)   : null;
-      var delta = (nuo !== null && iki !== null) ? (Math.round((iki - nuo) * 1000) / 1000) : null;
-      if (delta !== null) totalDelta += delta;
-      var aptLbl = apt.apt_label || apt.number;
-      rows +=
-        '<tr>' +
-        '<td style="text-align:center">' + rn++ + '</td>' +
-        '<td><b>' + esc(String(aptLbl)) + '</b></td>' +
-        '<td>' + esc(apt.tenant_name || '—') + '</td>' +
-        '<td>' + esc((r && r.note) ? r.note : '') + '</td>' +
-        '<td style="text-align:right">' + (nuo !== null ? nuo : '<span style="color:#dc2626">—</span>') + '</td>' +
-        '<td style="text-align:right">' + (iki !== null ? iki : '<span style="color:#dc2626">—</span>') + '</td>' +
-        '<td style="text-align:right"><b>' + (delta !== null ? delta : '—') + '</b></td>' +
-        '</tr>';
+      var key = m.meter_serial ? String(m.meter_serial) : ('__ns_' + m.id);
+      if (!groupMap[key]) {
+        groupMap[key] = { serial: m.meter_serial || '', meters: [] };
+        groupOrder.push(key);
+      }
+      groupMap[key].meters.push(m);
     });
+
+    var tRows = '';
+    groupOrder.forEach(function(key) {
+      var g = groupMap[key];
+      var n = g.meters.length;
+      g.meters.forEach(function(m, i) {
+        var r     = rm[m.id];
+        var nuo   = (r != null) ? Number(r.value_from) : null;
+        var iki   = (r != null) ? Number(r.value_to)   : null;
+        var delta = (nuo !== null && iki !== null) ? (Math.round((iki - nuo) * 1000) / 1000) : null;
+        var unit  = (m.meter_types && m.meter_types.unit) ? esc(m.meter_types.unit) : '';
+        var note  = (r && r.note) ? esc(r.note) : '';
+        tRows += '<tr>';
+        if (i === 0) {
+          var lbl = (m.meter_types && m.meter_types.label) ? esc(m.meter_types.label) : '';
+          var dev = lbl + (g.serial ? '<br>Gamyklinis Nr. ' + esc(g.serial) : '');
+          tRows += '<td rowspan="' + n + '" style="padding:5px 8px;border:1px solid #999;vertical-align:top;">' + dev + '</td>';
+        }
+        tRows += '<td style="padding:5px 8px;border:1px solid #999;text-align:center;">' + unit + '</td>';
+        tRows += '<td style="padding:5px 8px;border:1px solid #999;text-align:right;">' + (nuo !== null ? nuo : '—') + '</td>';
+        tRows += '<td style="padding:5px 8px;border:1px solid #999;text-align:right;">' + (iki !== null ? iki : '—') + '</td>';
+        tRows += '<td style="padding:5px 8px;border:1px solid #999;text-align:right;">' + (delta !== null ? delta : '—') + '</td>';
+        tRows += '<td style="padding:5px 8px;border:1px solid #999;">' + note + '</td>';
+        tRows += '</tr>';
+      });
+    });
+
+    var aptLbl = esc(String(apt.apt_label || apt.number));
+    var tenant = esc(apt.tenant_name || '');
+
+    aptPages.push(
+      '<div style="padding:15mm;font-family:Arial,sans-serif;font-size:11pt;page-break-after:always;">' +
+      '<table style="width:100%;border-collapse:collapse;">' +
+        '<tr>' +
+          '<td style="border:none;padding:0 0 1px 0;font-size:10pt;">' + tenant + '</td>' +
+          '<td style="border:none;padding:0 0 1px 0;font-size:10pt;font-weight:700;text-align:right;">' + aptLbl + '</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="border:none;padding:0;font-size:8pt;color:#777;">(vardas, pavardė)</td>' +
+          '<td style="border:none;padding:0;font-size:8pt;color:#777;text-align:right;">(kodas)</td>' +
+        '</tr>' +
+      '</table>' +
+      '<div style="font-size:10pt;margin:8px 0 2px;">' + esc(addr.name) + '</div>' +
+      '<div style="font-size:8pt;color:#777;margin-bottom:16px;">(adresas)</div>' +
+      '<div style="font-weight:700;text-align:center;font-size:12pt;margin-bottom:14px;">' +
+        'APSKAITOS PRIETAISŲ PARODYMAI ' + yr + ' m. ' + mGen + ' mėn.' +
+      '</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:10pt;">' +
+        '<thead>' +
+          '<tr style="background:#1f2937;color:#fff;">' +
+            '<th style="padding:5px 8px;border:1px solid #666;text-align:left;">Prietaiso pavadinimas</th>' +
+            '<th style="padding:5px 8px;border:1px solid #666;text-align:center;">Mat. vnt.</th>' +
+            '<th colspan="3" style="padding:5px 8px;border:1px solid #666;text-align:center;">Prietaisų parodymai</th>' +
+            '<th style="padding:5px 8px;border:1px solid #666;text-align:left;">Pastabos</th>' +
+          '</tr>' +
+          '<tr style="background:#374151;color:#fff;">' +
+            '<th style="padding:3px 8px;border:1px solid #666;"></th>' +
+            '<th style="padding:3px 8px;border:1px solid #666;"></th>' +
+            '<th style="padding:3px 8px;border:1px solid #666;text-align:center;font-size:9pt;">mėn. pradž.</th>' +
+            '<th style="padding:3px 8px;border:1px solid #666;text-align:center;font-size:9pt;">mėn. gale</th>' +
+            '<th style="padding:3px 8px;border:1px solid #666;text-align:center;font-size:9pt;">skirtumas</th>' +
+            '<th style="padding:3px 8px;border:1px solid #666;"></th>' +
+          '</tr>' +
+        '</thead>' +
+        '<tbody>' + tRows + '</tbody>' +
+      '</table>' +
+      '<div style="margin-top:40px;text-align:right;font-size:10pt;">' +
+        '<div>Mindaugas Bukauskas</div>' +
+        '<div style="font-size:8pt;color:#777;">(atsakingo asmens vardas, pavardė, parašas)</div>' +
+        '<div style="margin-top:14px;">' + esc(lastDate) + '</div>' +
+        '<div style="font-size:8pt;color:#777;">(duomenų fiksavimo data)</div>' +
+      '</div>' +
+      '</div>'
+    );
   });
 
-  var unitLbl = unit ? ' (' + unit + ')' : '';
-  return '<h3 style="text-align:center;margin:0 0 4px">' + esc(addr.name) + '</h3>' +
-    '<p style="text-align:center;color:#555;margin:0 0 12px;font-size:10pt">Šilumos skaitikliai &middot; ' + mLbl + '</p>' +
-    '<table border="1" style="width:100%;border-collapse:collapse;font-size:10pt;">' +
-    '<thead><tr style="background:#1f2937;color:#fff;">' +
-    '<th style="padding:5px 7px;width:32px">Nr.</th>' +
-    '<th style="padding:5px 7px">Butas</th>' +
-    '<th style="padding:5px 7px">Abonento vardas</th>' +
-    '<th style="padding:5px 7px">Pastabos</th>' +
-    '<th style="padding:5px 7px">NUO</th>' +
-    '<th style="padding:5px 7px">IKI</th>' +
-    '<th style="padding:5px 7px">&Delta;' + esc(unitLbl) + '</th>' +
-    '</tr></thead>' +
-    '<tbody>' + rows + '</tbody>' +
-    '<tfoot><tr style="background:#f3f4f6;">' +
-    '<td colspan="6" style="padding:5px 7px;font-weight:700;text-align:right">Iš viso:</td>' +
-    '<td style="padding:5px 7px;font-weight:700;text-align:right">' + (Math.round(totalDelta * 1000) / 1000) + esc(unit ? ' ' + unit : '') + '</td>' +
-    '</tr></tfoot></table>' +
-    '<div style="margin-top:28px;display:flex;justify-content:space-between;font-size:10pt;">' +
-    '<div>Atsakingas: Mindaugas Bukauskas</div>' +
-    '<div>Duomenų fiksavimo data: ' + mLbl + '</div>' +
+  if (!aptPages.length) {
+    return '<div style="padding:20px;font-family:Arial,sans-serif;">' +
+      '<h3>' + esc(addr.name) + '</h3>' +
+      '<p>Nėra butų ar skaitiklių.</p>' +
     '</div>';
+  }
+
+  var li = aptPages.length - 1;
+  aptPages[li] = aptPages[li].replace('page-break-after:always', 'page-break-after:avoid');
+
+  return aptPages.join('');
 }
 
 function downloadHeatReport() {
@@ -1904,10 +1966,9 @@ function downloadHeatPdf() {
         var inner = buildHeatReportInner(selAddr, period, data);
         var win = window.open('', '_blank');
         win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(selAddr.name) + '</title>' +
-          '<style>body{font-family:Arial,sans-serif;padding:12mm;}' +
-          '@media print{@page{margin:10mm;}body{padding:0;}}' +
-          'table{width:100%}th,td{padding:5px 7px}' +
-          'tr:nth-child(even) td{background:#f9f9f9}' +
+          '<style>body{font-family:Arial,sans-serif;margin:0;padding:0;}' +
+          '@media print{@page{margin:0;}}' +
+          'table{border-collapse:collapse;}' +
           '</style></head><body>' + inner +
           '<script>window.onload=function(){window.print();}<\/script></body></html>');
         win.document.close();
@@ -1980,15 +2041,11 @@ function generateAllHeatPdf(period) {
         '<title>Šilumos ataskaitos · ' + esc(mLbl) + '</title>' +
         '<style>' +
         'body{font-family:Arial,sans-serif;margin:0;padding:0;}' +
-        '.page{padding:12mm;page-break-after:always;}' +
-        '.page:last-child{page-break-after:avoid;}' +
-        '@media print{@page{margin:0;}.page{padding:12mm;}}' +
-        'table{width:100%;border-collapse:collapse;font-size:10pt;}' +
-        'th,td{padding:5px 7px;}' +
-        'tr:nth-child(even) td{background:#f9f9f9;}' +
+        '@media print{@page{margin:0;}}' +
+        'table{border-collapse:collapse;}' +
         '</style></head><body>');
       pages.forEach(function(p) {
-        win.document.write('<div class="page">' + p + '</div>');
+        win.document.write(p);
       });
       win.document.write('<script>window.onload=function(){window.print();}<\/script></body></html>');
       win.document.close();

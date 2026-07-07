@@ -1846,40 +1846,52 @@ function downloadHeatReport() {
 
 function downloadHeatPdf() {
   if (!selAddr) return;
-  var period = activePeriod;
-  toast('Kraunama…', '');
-  loadHeatAddrData(selAddr, period)
-    .then(function(data) {
-      var inner = buildHeatReportInner(selAddr, period, data);
-      var win = window.open('', '_blank');
-      win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(selAddr.name) + '</title>' +
-        '<style>body{font-family:Arial,sans-serif;padding:12mm;}' +
-        '@media print{@page{margin:10mm;}body{padding:0;}}' +
-        'table{width:100%}th,td{padding:5px 7px}' +
-        'tr:nth-child(even) td{background:#f9f9f9}' +
-        '</style></head><body>' + inner +
-        '<script>window.onload=function(){window.print();}<\/script></body></html>');
-      win.document.close();
-    })
-    .catch(function(e) { toast('Klaida: ' + e.message, 'er'); });
+  showHeatPeriodModal(function(period) {
+    toast('Kraunama…', '');
+    loadHeatAddrData(selAddr, period)
+      .then(function(data) {
+        var inner = buildHeatReportInner(selAddr, period, data);
+        var win = window.open('', '_blank');
+        win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + esc(selAddr.name) + '</title>' +
+          '<style>body{font-family:Arial,sans-serif;padding:12mm;}' +
+          '@media print{@page{margin:10mm;}body{padding:0;}}' +
+          'table{width:100%}th,td{padding:5px 7px}' +
+          'tr:nth-child(even) td{background:#f9f9f9}' +
+          '</style></head><body>' + inner +
+          '<script>window.onload=function(){window.print();}<\/script></body></html>');
+        win.document.close();
+      })
+      .catch(function(e) { toast('Klaida: ' + e.message, 'er'); });
+  });
+}
+
+var _heatPdfCb = null;
+
+function showHeatPeriodModal(cb) {
+  var inp = document.getElementById('modal-heat-period');
+  if (inp && !inp.value) inp.value = prevMonthOf(CUR_PERIOD);
+  _heatPdfCb = cb;
+  document.getElementById('heat-period-modal').classList.remove('hidden');
 }
 
 function downloadAllHeatPdf() {
-  var inp = document.getElementById('modal-heat-period');
-  if (inp && !inp.value) inp.value = prevMonthOf(CUR_PERIOD);
-  document.getElementById('heat-period-modal').classList.remove('hidden');
+  showHeatPeriodModal(function(period) { generateAllHeatPdf(period); });
 }
 
 function closeHeatModal(e) {
   if (e && e.target !== document.getElementById('heat-period-modal')) return;
   document.getElementById('heat-period-modal').classList.add('hidden');
+  _heatPdfCb = null;
 }
 
 function confirmHeatPdf() {
   var period = document.getElementById('modal-heat-period').value;
   document.getElementById('heat-period-modal').classList.add('hidden');
-  if (!period) { toast('Pasirinkite mėnesį!', 'er'); return; }
+  if (!period) { toast('Pasirinkite mėnesį!', 'er'); _heatPdfCb = null; return; }
+  if (_heatPdfCb) { _heatPdfCb(period); _heatPdfCb = null; }
+}
 
+function generateAllHeatPdf(period) {
   var heatAddrs = addrList.filter(function(a) { return addrMeta(a.name).type === 'heat'; });
   if (!heatAddrs.length) { toast('Nėra šilumos adresų!', 'er'); return; }
 

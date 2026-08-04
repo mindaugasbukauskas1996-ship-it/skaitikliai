@@ -466,9 +466,11 @@ function chooseRole(role) {
 /* ── ADDRESS LIST ─────────────────────────────────── */
 function addrMeta(name) {
   var n = (name || '').toLowerCase();
-  /* electricity: Žemaitės g. and Basanavičiaus g. patterns */
-  if (n.indexOf('žemait') >= 0 || n.indexOf('zemait') >= 0 ||
-      n.indexOf('basanav') >= 0) {
+  /* electricity: Žemaitės g. (not nr. 3) and Basanavičiaus g. */
+  if ((n.indexOf('žemait') >= 0 || n.indexOf('zemait') >= 0) && n.indexOf(' 3') < 0) {
+    return { type: 'elec', sort: 0, icon: '⚡', sub: 'Elektros skaitikliai' };
+  }
+  if (n.indexOf('basanav') >= 0) {
     return { type: 'elec', sort: 0, icon: '⚡', sub: 'Elektros skaitikliai' };
   }
   /* water/hot-water: Karališkių pattern */
@@ -932,7 +934,7 @@ function buildMeterRow(label, m, disabled, aptId) {
   nuoInp.id        = 'nuo-' + m.id;
   nuoInp.className = 'pf';
   nuoInp.value     = prevVal;
-  nuoInp.readOnly  = true;
+  nuoInp.readOnly  = (userRole !== 'admin');
   nuoDiv.appendChild(nuoInp);
   row.appendChild(nuoDiv);
 

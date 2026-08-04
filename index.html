@@ -106,8 +106,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .suvartota-val{font-size:.98rem;font-weight:700;color:#15803d;}
 .meter-sec{margin-bottom:10px;}
 .meter-lbl{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px;}
-.meter-serial{font-size:.72rem;color:var(--muted);margin-bottom:5px;}
-.serial-inp{border:1px solid var(--inp-b);border-radius:6px;padding:3px 7px;font-size:.72rem;color:var(--muted);background:var(--inp);font-family:inherit;outline:none;width:100%;box-sizing:border-box;}
+.meter-serial{font-size:.72rem;color:var(--muted);margin-bottom:5px;display:flex;align-items:center;gap:4px;}
+.serial-inp{border:1px solid var(--inp-b);border-radius:6px;padding:3px 7px;font-size:.72rem;color:var(--muted);background:var(--inp);font-family:inherit;outline:none;flex:1;min-width:0;}
+.serial-save-btn{flex-shrink:0;border:1px solid var(--inp-b);border-radius:6px;padding:2px 7px;font-size:.72rem;background:var(--inp);color:var(--muted);cursor:pointer;font-family:inherit;}
+.serial-save-btn:hover{background:#0369a1;color:#fff;border-color:#0369a1;}
 .meter-row{display:grid;grid-template-columns:1fr 1fr 48px;gap:6px;align-items:end;}
 .fld label{display:block;font-size:.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;}
 .fld input{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:10px 9px;font-size:1rem;background:var(--inp);outline:none;font-family:'Courier New',monospace;-webkit-appearance:none;color:var(--text);}
@@ -929,7 +931,44 @@ function buildMeterRow(label, m, disabled, aptId) {
     serialInp.className   = 'serial-inp';
     serialInp.value       = m.meter_serial || '';
     serialInp.placeholder = 'Gamyklinis Nr.…';
+    var serialBtn = document.createElement('button');
+    serialBtn.className   = 'serial-save-btn';
+    serialBtn.textContent = '✓';
+    serialBtn.title       = 'Išsaugoti gamyklinį Nr.';
+    (function(mRef, aptMs) {
+      serialBtn.addEventListener('click', function() {
+        var newSerial = serialInp.value.trim();
+        var oldSerial = mRef.meter_serial || '';
+        if (newSerial === oldSerial) { toast('Nr. nepakeitė.', ''); return; }
+        serialBtn.textContent = '…';
+        serialBtn.disabled = true;
+        var toUpdate = aptMs.filter(function(mm) { return (mm.meter_serial || '') === oldSerial; });
+        if (!toUpdate.length) toUpdate = [mRef];
+        var chain2 = Promise.resolve();
+        toUpdate.forEach(function(mm) {
+          var mmId = mm.id, mmRef2 = mm;
+          chain2 = chain2.then(function() {
+            return sbPatch('meters?id=eq.' + mmId, { meter_serial: newSerial || null })
+              .then(function() { mmRef2.meter_serial = newSerial || null; });
+          });
+        });
+        chain2.then(function() {
+          serialBtn.textContent = '✓';
+          serialBtn.disabled = false;
+          toast('Gamyklinis Nr. išsaugotas!', 'ok');
+          toUpdate.forEach(function(mm) {
+            var inp = document.getElementById('serial-' + mm.id);
+            if (inp) inp.value = newSerial;
+          });
+        }).catch(function(e) {
+          serialBtn.textContent = '✓';
+          serialBtn.disabled = false;
+          toast('Klaida: ' + e.message, 'er');
+        });
+      });
+    })(m, meterList.filter(function(mm) { return mm.apartment_id === m.apartment_id; }));
     serialDiv.appendChild(serialInp);
+    serialDiv.appendChild(serialBtn);
   } else if (m.meter_serial) {
     serialDiv.textContent = 'Nr. ' + m.meter_serial;
   }
@@ -1141,27 +1180,6 @@ function saveApt(aptId) {
       }
     });
   });
-
-  if (userRole === 'admin') {
-    var seenSerials = {};
-    ms.forEach(function(m) {
-      var sEl = document.getElementById('serial-' + m.id);
-      if (!sEl) return;
-      var newSerial = sEl.value.trim();
-      var oldSerial = m.meter_serial || '';
-      if (newSerial === oldSerial) return;
-      if (seenSerials[oldSerial + '|' + m.id]) return;
-      var toUpdate = ms.filter(function(mm) { return (mm.meter_serial || '') === oldSerial; });
-      toUpdate.forEach(function(mm) {
-        seenSerials[oldSerial + '|' + mm.id] = true;
-        var mmId = mm.id, mmRef = mm, ns = newSerial;
-        chain = chain.then(function() {
-          return sbPatch('meters?id=eq.' + mmId, { meter_serial: ns || null })
-            .then(function() { mmRef.meter_serial = ns || null; });
-        });
-      });
-    });
-  }
 
   chain
     .then(function() {

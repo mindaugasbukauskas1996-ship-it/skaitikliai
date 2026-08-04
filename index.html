@@ -204,8 +204,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- ── SCREEN: ADDRESSES ── -->
 <div id="screen-addresses" class="screen">
   <div class="section-lbl" id="addr-period-lbl"></div>
-  <div id="all-heat-bar" class="heat-excel-bar hidden" style="margin-bottom:8px;">
-    <button class="heat-excel-btn heat-pdf-btn" onclick="downloadAllHeatPdf()">&#x1F4C4; Visų šilumos ataskaitų PDF</button>
+  <div id="all-heat-bar" class="heat-excel-bar hidden" style="margin-bottom:8px;align-items:center;">
+    <select id="all-heat-period-sel" style="flex:0 0 auto;border:1.5px solid #7c3aed;border-radius:8px;padding:9px 8px;font-size:.88rem;font-weight:700;background:#ede9fe;color:#7c3aed;font-family:inherit;outline:none;cursor:pointer;"></select>
+    <button class="heat-excel-btn heat-pdf-btn" style="flex:1;" onclick="downloadAllHeatPdf()">&#x1F4C4; Visų šilumos ataskaitų PDF</button>
   </div>
   <div class="addr-grid" id="addr-grid">
     <div class="loading"><div class="spinner"></div>Kraunama...</div>
@@ -520,12 +521,31 @@ function loadAddresses() {
     });
 }
 
+function populateHeatMonthSel() {
+  var sel = document.getElementById('all-heat-period-sel');
+  if (!sel || sel.options.length > 0) return;
+  var pts = CUR_PERIOD.split('-');
+  var yr = parseInt(pts[0], 10);
+  var mo = parseInt(pts[1], 10);
+  for (var i = 1; i <= 12; i++) {
+    var m = mo - i; var y = yr;
+    if (m < 1) { m += 12; y--; }
+    var val = y + '-' + (m < 10 ? '0' : '') + m;
+    var opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = MEN[m] + ' ' + y;
+    if (i === 1) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
 function renderAddresses() {
   var grid = document.getElementById('addr-grid');
   grid.innerHTML = '';
   var anyHeat = addrList.some(function(a) { return addrMeta(a.name).type === 'heat'; });
   var allHeatBar = document.getElementById('all-heat-bar');
   if (allHeatBar) { allHeatBar.classList[anyHeat ? 'remove' : 'add']('hidden'); }
+  if (anyHeat) populateHeatMonthSel();
   addrList.forEach(function(a) {
     var m    = addrMeta(a.name);
     var card = document.createElement('div');
@@ -2326,6 +2346,8 @@ function downloadHeatPdf() {
 
 /* ── ALL HEAT ADDRESSES COMBINED PDF ─────────────── */
 function downloadAllHeatPdf() {
+  var sel = document.getElementById('all-heat-period-sel');
+  var period = sel && sel.value ? sel.value : activePeriod;
   var heatAddrs = addrList.filter(function(a) { return addrMeta(a.name).type === 'heat'; });
   if (!heatAddrs.length) { toast('Šilumos adresų nerasta', 'err'); return; }
   toast('Kraunama...', 'ok');
@@ -2347,13 +2369,13 @@ function downloadAllHeatPdf() {
       var mIds = d.meters.map(function(m) { return m.id; }).join(',');
       return sbGet(
         'readings?select=meter_id,value_to&meter_id=in.(' + mIds + ')' +
-        '&period=lt.' + activePeriod + '&order=period.desc'
+        '&period=lt.' + period + '&order=period.desc'
       ).then(function(prev) { d.prev = prev; return d; });
     })
     .then(function(d) {
       var mIds = d.meters.map(function(m) { return m.id; }).join(',');
       return sbGet(
-        'readings?select=meter_id,value_to&meter_id=in.(' + mIds + ')&period=eq.' + activePeriod
+        'readings?select=meter_id,value_to&meter_id=in.(' + mIds + ')&period=eq.' + period
       ).then(function(curr) { d.curr = curr; return d; });
     })
     .then(function(d) {

@@ -2389,19 +2389,20 @@ function downloadAllHeatPdf() {
         var aid = d.aptToAddr[m.apartment_id];
         if (aid && addrMeters[aid]) addrMeters[aid].push(m);
       });
-      generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2);
+      generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period);
     })
     .catch(function(e) { toast('Klaida: ' + (e.message || e), 'err'); });
 }
 
-function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2) {
+function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period) {
+  if (!period) period = activePeriod;
   function eh(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function fn(v) { return (v !== null) ? String(Math.round(v)) : ''; }
   function iki(m) { return (m && curR2[m.id] != null) ? curR2[m.id] : null; }
   function nuo(m) { return (m && prevR2[m.id] !== undefined) ? prevR2[m.id] : null; }
   function diff(n,v) { return (n!==null&&v!==null) ? Math.round(v-n) : null; }
 
-  var parts = activePeriod.split('-');
+  var parts = period.split('-');
   var year = parts[0], monthNum = parseInt(parts[1]);
   var mNames = ['sausio','vasario','kovo','balandžio','gegužės','birželio',
                 'liepos','rugpjūčio','rugsėjo','spalio','lapkričio','gruodžio'];

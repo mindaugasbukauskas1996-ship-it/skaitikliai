@@ -422,6 +422,31 @@ function getPrevMonth(ym) {
   return y + '-' + (m < 10 ? '0' + m : String(m));
 }
 
+/* ── REPORT OFFSETS (meters.report_offset / report_offset_from) ──
+   Technician always sees raw readings; reports add the offset from a given period on. */
+var offMap = {};
+function loadOffsets() {
+  return sbGet('meters?select=id,report_offset,report_offset_from&report_offset=neq.0')
+    .then(function(rows) {
+      offMap = {};
+      rows.forEach(function(r) { offMap[r.id] = { o: Number(r.report_offset) || 0, from: r.report_offset_from || '' }; });
+    })
+    .catch(function() { offMap = {}; });
+}
+function offFor(meterId, period) {
+  var x = offMap[meterId];
+  return (x && x.from && period >= x.from) ? x.o : 0;
+}
+/* adjusts readings of ONE period in place: value_to by that period, value_from by the previous period */
+function applyOffsets(rds, period) {
+  var prev = getPrevMonth(period);
+  rds.forEach(function(r) {
+    if (r.value_to != null)   r.value_to   = Number(r.value_to)   + offFor(r.meter_id, period);
+    if (r.value_from != null) r.value_from = Number(r.value_from) + offFor(r.meter_id, prev);
+  });
+  return rds;
+}
+
 function getNextMonth(ym) {
   var p = ym.split('-'); var y = parseInt(p[0]); var m = parseInt(p[1]);
   if (m === 12) { y++; m = 1; } else { m++; }
@@ -1415,6 +1440,9 @@ function generateReport() {
             if (!ms.length) { next(); return; }
             var mIds = ms.map(function(m) { return m.id; }).join(',');
             sbGet('readings?select=meter_id,value_from,value_to,note&meter_id=in.(' + mIds + ')&period=eq.' + month)
+              .then(function(rds) {
+                return loadOffsets().then(function() { return applyOffsets(rds, month); });
+              })
               .then(function(rds) {
                 var rm = {};
                 rds.forEach(function(r) { rm[r.meter_id] = r; });
@@ -2561,9 +2589,10 @@ function openElecReport() {
       var mInfo = {};
       ms.forEach(function(m) { mInfo[m.id] = m; });
       if (!ms.length) return { mInfo: mInfo, rds: [] };
-      return sbGet('readings?select=meter_id,period,value_to&value_to=not.is.null&limit=10000&order=period.desc&meter_id=in.(' +
-        ms.map(function(m) { return m.id; }).join(',') + ')')
-        .then(function(rds) { return { mInfo: mInfo, rds: rds }; });
+      return loadOffsets().then(function() {
+        return sbGet('readings?select=meter_id,period,value_to&value_to=not.is.null&limit=10000&order=period.desc&meter_id=in.(' +
+          ms.map(function(m) { return m.id; }).join(',') + ')');
+      }).then(function(rds) { return { mInfo: mInfo, rds: rds }; });
     })
     .then(function(d) {
       /* key: aptId|period -> {day, night} */
@@ -2574,7 +2603,7 @@ function openElecReport() {
         if (code !== 'electricity_day' && code !== 'electricity_night') return;
         var k = m.apartment_id + '|' + r.period;
         if (!cells[k]) cells[k] = { apt: m.apartment_id, period: r.period };
-        cells[k][code === 'electricity_day' ? 'day' : 'night'] = Number(r.value_to);
+        cells[k][code === 'electricity_day' ? 'day' : 'night'] = Number(r.value_to) + offFor(r.meter_id, r.period);
       });
       var html = '';
       addrs.forEach(function(addr) {

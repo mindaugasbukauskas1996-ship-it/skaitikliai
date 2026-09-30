@@ -209,6 +209,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="apn-lbl" id="addr-period-lbl"></div>
     <button class="apn-btn" id="apn-next" onclick="changeListPeriod(1)">&#8594;</button>
   </div>
+  <div id="elec-rep-bar" class="heat-excel-bar hidden" style="margin-bottom:8px;">
+    <button class="heat-excel-btn" style="flex:1;" onclick="openElecReport()">&#9889; Elektros ataskaita (Žemaitės 6, 10 · Basanavičiaus 4, 17)</button>
+  </div>
   <div class="addr-grid" id="addr-grid">
     <div class="loading"><div class="spinner"></div>Kraunama...</div>
   </div>
@@ -243,6 +246,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="loading"><div class="spinner"></div>Kraunama...</div>
   </div>
   <div class="btm-spacer hidden" id="apts-spacer"></div>
+</div>
+
+<!-- ── SCREEN: ELECTRICITY MONTHLY REPORT (admin) ── -->
+<div id="screen-elecrep" class="screen">
+  <div style="padding:10px 12px;display:flex;gap:8px;">
+    <button class="back-btn" onclick="goToAddresses()">&larr; Atgal</button>
+    <button class="heat-excel-btn" style="flex:1;" onclick="exportElecRepCsv()">&#128190; CSV</button>
+  </div>
+  <div id="elecrep-body" style="padding:0 12px 24px;"><div class="loading"><div class="spinner"></div>Kraunama...</div></div>
 </div>
 
 <!-- ── SCREEN: REPORT (admin) ── -->
@@ -2002,6 +2014,97 @@ function exportCsv(rows, month) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('CSV eksportuotas!', 'ok');
+}
+
+/* ── ELECTRICITY MONTHLY REPORT (Žemaitės 6/10, Basanavičiaus 4/17) ── */
+var elecRepRows = [];
+
+function elecRepKind(name) {
+  if (/žemait[^\d]*(6|10)(\D|$)/i.test(name)) return 'bendras';
+  if (/basanavi[^\d]*(4|17)(\D|$)/i.test(name)) return 'iki';
+  return null;
+}
+
+function openElecReport() {
+  showScreen('screen-elecrep');
+  var body = document.getElementById('elecrep-body');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div>Kraunama...</div>';
+  elecRepRows = [['Adresas','Butas','Mėnuo','Dieninis IKI','Naktinis IKI','Bendras parodymas']];
+  var addrs = addrList.filter(function(a) { return elecRepKind(a.name); });
+  if (!addrs.length) { body.innerHTML = '<div class="loading">Adresų nerasta</div>'; return; }
+  var aIds = addrs.map(function(a) { return a.id; }).join(',');
+  var aptMap = {};
+  sbGet('apartments?select=id,number,apt_label,address_id&address_id=in.(' + aIds + ')&order=number')
+    .then(function(apts) {
+      apts.forEach(function(a) { aptMap[a.id] = a; });
+      if (!apts.length) return [];
+      return sbGet('meters?select=id,apartment_id,meter_types(code)&apartment_id=in.(' +
+        apts.map(function(a) { return a.id; }).join(',') + ')');
+    })
+    .then(function(ms) {
+      ms = ms || [];
+      var mInfo = {};
+      ms.forEach(function(m) { mInfo[m.id] = m; });
+      if (!ms.length) return { mInfo: mInfo, rds: [] };
+      return sbGet('readings?select=meter_id,period,value_to&value_to=not.is.null&limit=10000&order=period.desc&meter_id=in.(' +
+        ms.map(function(m) { return m.id; }).join(',') + ')')
+        .then(function(rds) { return { mInfo: mInfo, rds: rds }; });
+    })
+    .then(function(d) {
+      /* key: aptId|period -> {day, night} */
+      var cells = {};
+      d.rds.forEach(function(r) {
+        var m = d.mInfo[r.meter_id];
+        var code = m && m.meter_types && m.meter_types.code;
+        if (code !== 'electricity_day' && code !== 'electricity_night') return;
+        var k = m.apartment_id + '|' + r.period;
+        if (!cells[k]) cells[k] = { apt: m.apartment_id, period: r.period };
+        cells[k][code === 'electricity_day' ? 'day' : 'night'] = Number(r.value_to);
+      });
+      var html = '';
+      addrs.forEach(function(addr) {
+        var kind = elecRepKind(addr.name);
+        var list = Object.keys(cells).map(function(k) { return cells[k]; })
+          .filter(function(c) { return aptMap[c.apt] && aptMap[c.apt].address_id === addr.id; })
+          .sort(function(a, b) {
+            if (a.period !== b.period) return a.period < b.period ? 1 : -1;
+            return String(aptMap[a.apt].number).localeCompare(String(aptMap[b.apt].number), undefined, { numeric: true });
+          });
+        html += '<h3 style="margin:16px 0 6px;font-size:1rem;">' + esc(addr.name) +
+                ' <span style="font-weight:400;font-size:.75rem;color:var(--muted);">' +
+                (kind === 'bendras' ? 'Bendras parodymas' : 'Rodmuo IKI') + '</span></h3>';
+        html += '<div style="overflow-x:auto;"><table style="border-collapse:collapse;width:100%;background:#fff;font-size:.85rem;">' +
+          '<tr style="background:#1f2937;color:#fff;"><th style="padding:6px 8px;text-align:left;">Mėnuo</th>' +
+          '<th style="padding:6px 8px;text-align:left;">Butas</th>' +
+          '<th style="padding:6px 8px;text-align:right;">Dieninis</th>' +
+          '<th style="padding:6px 8px;text-align:right;">Naktinis</th>' +
+          '<th style="padding:6px 8px;text-align:right;">' + (kind === 'bendras' ? 'Bendras' : 'Suma') + '</th></tr>';
+        if (!list.length) html += '<tr><td colspan="5" style="padding:8px;">Duomenų nėra</td></tr>';
+        list.forEach(function(c) {
+          var a = aptMap[c.apt];
+          var tot = (c.day != null || c.night != null) ? Math.round(((c.day || 0) + (c.night || 0)) * 1000) / 1000 : '';
+          var d1 = c.day != null ? c.day : '', n1 = c.night != null ? c.night : '';
+          var lbl = a.apt_label || a.number;
+          var b = kind === 'bendras' ? 'font-weight:700;' : '';
+          html += '<tr style="border-top:1px solid #ddd;"><td style="padding:5px 8px;">' + esc(c.period) + '</td>' +
+            '<td style="padding:5px 8px;">' + esc(lbl) + '</td>' +
+            '<td style="padding:5px 8px;text-align:right;' + (kind === 'iki' ? 'font-weight:700;' : '') + '">' + d1 + '</td>' +
+            '<td style="padding:5px 8px;text-align:right;' + (kind === 'iki' ? 'font-weight:700;' : '') + '">' + n1 + '</td>' +
+            '<td style="padding:5px 8px;text-align:right;' + b + '">' + tot + '</td></tr>';
+          elecRepRows.push([addr.name, lbl, c.period, d1, n1, tot]);
+        });
+        html += '</table></div>';
+      });
+      document.getElementById('elecrep-body').innerHTML = html;
+    })
+    .catch(function(e) {
+      document.getElementById('elecrep-body').innerHTML = '<div class="loading">Klaida: ' + esc(e.message || e) + '</div>';
+    });
+}
+
+function exportElecRepCsv() {
+  if (elecRepRows.length < 2) { toast('Nėra duomenų', 'er'); return; }
+  exportCsv(elecRepRows, 'elektra_' + CUR_PERIOD);
 }
 </script>
 </body>

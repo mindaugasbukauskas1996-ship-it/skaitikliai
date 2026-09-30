@@ -558,6 +558,8 @@ function renderAddresses() {
   var allHeatBar = document.getElementById('all-heat-bar');
   if (allHeatBar) { allHeatBar.classList[anyHeat ? 'remove' : 'add']('hidden'); }
   if (anyHeat) populateHeatMonthSel();
+  var erb = document.getElementById('elec-rep-bar');
+  if (erb) erb.classList[userRole === 'admin' ? 'remove' : 'add']('hidden');
   addrList.forEach(function(a) {
     var m    = addrMeta(a.name);
     var card = document.createElement('div');

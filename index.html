@@ -2166,7 +2166,10 @@ function downloadHeatReport() {
   });
 
   function getIki(m) { return (m && curR[m.id] && curR[m.id].value_to != null) ? curR[m.id].value_to : null; }
-  function getNuo2(m){ return (m && prevR[m.id] !== undefined) ? prevR[m.id] : null; }
+  function getNuo2(m){
+    if (m && curR[m.id] && curR[m.id].value_from != null) return curR[m.id].value_from;
+    return (m && prevR[m.id] !== undefined) ? prevR[m.id] : null;
+  }
   function getDiff2(n,v){ return (n !== null && v !== null) ? Math.round(v - n) : null; }
 
   var mwhNuo = getNuo2(mwhM), mwhIki = getIki(mwhM), mwhDiff = getDiff2(mwhNuo, mwhIki);
@@ -2294,7 +2297,10 @@ function downloadHeatPdf() {
   });
 
   function getIki(m) { return (m && curR[m.id] && curR[m.id].value_to != null) ? curR[m.id].value_to : null; }
-  function getNuo2(m){ return (m && prevR[m.id] !== undefined) ? prevR[m.id] : null; }
+  function getNuo2(m){
+    if (m && curR[m.id] && curR[m.id].value_from != null) return curR[m.id].value_from;
+    return (m && prevR[m.id] !== undefined) ? prevR[m.id] : null;
+  }
   function fn(v)     { return (v !== null) ? String(Math.round(v)) : ''; }
   function eh(s)     { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -2417,7 +2423,7 @@ function downloadAllHeatPdf() {
     .then(function(d) {
       var mIds = d.meters.map(function(m) { return m.id; }).join(',');
       return sbGet(
-        'readings?select=meter_id,value_to&meter_id=in.(' + mIds + ')&period=eq.' + period
+        'readings?select=meter_id,value_from,value_to&meter_id=in.(' + mIds + ')&period=eq.' + period
       ).then(function(curr) { d.curr = curr; return d; });
     })
     .then(function(d) {
@@ -2425,6 +2431,8 @@ function downloadAllHeatPdf() {
       d.prev.forEach(function(r) { if (prevR2[r.meter_id] === undefined) prevR2[r.meter_id] = r.value_to; });
       var curR2 = {};
       d.curr.forEach(function(r) { curR2[r.meter_id] = r.value_to; });
+      /* stored NUO of the period wins (e.g. replaced meter starts from a new value) */
+      d.curr.forEach(function(r) { if (r.value_from != null) prevR2[r.meter_id] = r.value_from; });
       var addrMeters = {};
       heatAddrs.forEach(function(a) { addrMeters[a.id] = []; });
       d.meters.forEach(function(m) {

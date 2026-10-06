@@ -422,6 +422,18 @@ function getPrevMonth(ym) {
   return y + '-' + (m < 10 ? '0' + m : String(m));
 }
 
+/* ── EXTRA CONSUMPTION (readings.extra_consumption) ──
+   e.g. consumption of the OLD meter before it was replaced; added to the difference in PDFs only */
+var extraMap = {};
+function loadExtras(period) {
+  return sbGet('readings?select=meter_id,extra_consumption&period=eq.' + period + '&extra_consumption=neq.0')
+    .then(function(rows) {
+      extraMap = {};
+      rows.forEach(function(r) { extraMap[r.meter_id] = Number(r.extra_consumption) || 0; });
+    })
+    .catch(function() { extraMap = {}; });
+}
+
 /* ── REPORT OFFSETS (meters.report_offset / report_offset_from) ──
    Technician always sees raw readings; reports add the offset from a given period on. */
 var offMap = {};
@@ -711,6 +723,7 @@ function goBack() {
 
 /* ── LOAD APARTMENTS DATA ─────────────────────────── */
 function loadApts(addrId) {
+  loadExtras(activePeriod);
   sbGet('apartments?select=id,number,tenant_name,apt_label&address_id=eq.' + addrId + '&order=number')
     .then(function(apts) {
       aptList = apts;
@@ -2170,12 +2183,12 @@ function downloadHeatReport() {
     if (m && curR[m.id] && curR[m.id].value_from != null) return curR[m.id].value_from;
     return (m && prevR[m.id] !== undefined) ? prevR[m.id] : null;
   }
-  function getDiff2(n,v){ return (n !== null && v !== null) ? Math.round(v - n) : null; }
+  function getDiff2(n,v,m){ return (n !== null && v !== null) ? Math.round(v - n + ((m && extraMap[m.id]) || 0)) : null; }
 
-  var mwhNuo = getNuo2(mwhM), mwhIki = getIki(mwhM), mwhDiff = getDiff2(mwhNuo, mwhIki);
-  var m3Nuo  = getNuo2(m3M),  m3Iki  = getIki(m3M),  m3Diff  = getDiff2(m3Nuo,  m3Iki);
-  var hNuo   = getNuo2(hM),   hIki   = getIki(hM),   hDiff   = getDiff2(hNuo,   hIki);
-  var wNuo   = getNuo2(wM),   wIki   = getIki(wM),   wDiff   = getDiff2(wNuo,   wIki);
+  var mwhNuo = getNuo2(mwhM), mwhIki = getIki(mwhM), mwhDiff = getDiff2(mwhNuo, mwhIki, mwhM);
+  var m3Nuo  = getNuo2(m3M),  m3Iki  = getIki(m3M),  m3Diff  = getDiff2(m3Nuo, m3Iki, m3M);
+  var hNuo   = getNuo2(hM),   hIki   = getIki(hM),   hDiff   = getDiff2(hNuo, hIki, hM);
+  var wNuo   = getNuo2(wM),   wIki   = getIki(wM),   wDiff   = getDiff2(wNuo, wIki, wM);
 
   var parts = activePeriod.split('-');
   var year  = parts[0], monthNum = parseInt(parts[1]);
@@ -2304,10 +2317,10 @@ function downloadHeatPdf() {
   function fn(v)     { return (v !== null) ? String(Math.round(v)) : ''; }
   function eh(s)     { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  var mwhNuo = getNuo2(mwhM), mwhIki = getIki(mwhM), mwhDiff = (mwhNuo!==null&&mwhIki!==null) ? Math.round(mwhIki-mwhNuo) : null;
-  var m3Nuo  = getNuo2(m3M),  m3Iki  = getIki(m3M),  m3Diff  = (m3Nuo!==null&&m3Iki!==null)   ? Math.round(m3Iki-m3Nuo)   : null;
-  var hNuo   = getNuo2(hM),   hIki   = getIki(hM),   hDiff   = (hNuo!==null&&hIki!==null)     ? Math.round(hIki-hNuo)     : null;
-  var wNuo   = getNuo2(wM),   wIki   = getIki(wM),   wDiff   = (wNuo!==null&&wIki!==null)     ? Math.round(wIki-wNuo)     : null;
+  var mwhNuo = getNuo2(mwhM), mwhIki = getIki(mwhM), mwhDiff = (mwhNuo!==null&&mwhIki!==null) ? Math.round(mwhIki-mwhNuo+((mwhM&&extraMap[mwhM.id])||0)) : null;
+  var m3Nuo  = getNuo2(m3M),  m3Iki  = getIki(m3M),  m3Diff  = (m3Nuo!==null&&m3Iki!==null)   ? Math.round(m3Iki-m3Nuo+((m3M&&extraMap[m3M.id])||0))   : null;
+  var hNuo   = getNuo2(hM),   hIki   = getIki(hM),   hDiff   = (hNuo!==null&&hIki!==null)     ? Math.round(hIki-hNuo+((hM&&extraMap[hM.id])||0))     : null;
+  var wNuo   = getNuo2(wM),   wIki   = getIki(wM),   wDiff   = (wNuo!==null&&wIki!==null)     ? Math.round(wIki-wNuo+((wM&&extraMap[wM.id])||0))     : null;
 
   var parts = activePeriod.split('-');
   var year = parts[0], monthNum = parseInt(parts[1]);
@@ -2439,7 +2452,9 @@ function downloadAllHeatPdf() {
         var aid = d.aptToAddr[m.apartment_id];
         if (aid && addrMeters[aid]) addrMeters[aid].push(m);
       });
-      generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period);
+      return loadExtras(period).then(function() {
+        generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period);
+      });
     })
     .catch(function(e) { toast('Klaida: ' + (e.message || e), 'err'); });
 }
@@ -2450,7 +2465,7 @@ function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period) {
   function fn(v) { return (v !== null) ? String(Math.round(v)) : ''; }
   function iki(m) { return (m && curR2[m.id] != null) ? curR2[m.id] : null; }
   function nuo(m) { return (m && prevR2[m.id] !== undefined) ? prevR2[m.id] : null; }
-  function diff(n,v) { return (n!==null&&v!==null) ? Math.round(v-n) : null; }
+  function diff(n,v,m) { return (n!==null&&v!==null) ? Math.round(v-n+((m&&extraMap[m.id])||0)) : null; }
 
   var parts = period.split('-');
   var year = parts[0], monthNum = parseInt(parts[1]);
@@ -2488,10 +2503,10 @@ function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period) {
       else if (c==='heat_h'  &&!hM)   hM=m;
       else if ((c==='water_m3'||c==='hot_water')&&!wM) wM=m;
     });
-    var mwhN=nuo(mwhM),mwhI=iki(mwhM),mwhD=diff(mwhN,mwhI);
-    var m3N=nuo(m3M),  m3I=iki(m3M),  m3D=diff(m3N,m3I);
-    var hN=nuo(hM),    hI=iki(hM),    hD=diff(hN,hI);
-    var wN=nuo(wM),    wI=iki(wM),    wD=diff(wN,wI);
+    var mwhN=nuo(mwhM),mwhI=iki(mwhM),mwhD=diff(mwhN,mwhI,mwhM);
+    var m3N=nuo(m3M),  m3I=iki(m3M),  m3D=diff(m3N,m3I,m3M);
+    var hN=nuo(hM),    hI=iki(hM),    hD=diff(hN,hI,hM);
+    var wN=nuo(wM),    wI=iki(wM),    wD=diff(wN,wI,wM);
     var hs = (mwhM&&mwhM.meter_serial) ? String(mwhM.meter_serial) : '';
     var ws = (wM&&wM.meter_serial)     ? String(wM.meter_serial)   : '';
     var hName = 'Šilumos skaitiklis  Gamyklinis Nr.  ' + hs;

@@ -1721,6 +1721,10 @@ function parseHeatScreenshot(file, apiKey) {
               type: 'text',
               text: 'This is a Lithuanian apartment heating report from a heat accounting system.\n' +
                 'Each apartment ("N butas") has multiple room rows: Svetainė, Miegamasis, San. mazgas, etc.\n' +
+                'IMPORTANT: the "N butas" labels in the left column drift downwards for later apartments (a label can sit next to the LAST room row of the previous apartment, or in the middle of the next block). ' +
+                'Do NOT assign rows by where the label is. Instead split the table into blocks: every block starts at a "Svetainė" row and ends with its "San mazgas" row. ' +
+                'Take the blocks in order from top to bottom and map them to apartments in ascending order (1st block = first apartment, 2nd block = second, ...). ' +
+                'Every room row of a block (including San mazgas) belongs to that block\'s apartment, even if a different "N butas" label is printed beside it.\n' +
                 'Each room shows a cumulative energy value in the "Sunaudota energijos" column (kWh).\n\n' +
                 'For each apartment: ADD UP all room kWh values to get one total IKI number.\n' +
                 'Example: Svetainė 925.68 + Miegamasis 262.33 + San.mazgas 751.61 = 1939.62\n\n' +

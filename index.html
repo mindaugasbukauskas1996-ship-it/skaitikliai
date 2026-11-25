@@ -110,6 +110,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .serial-inp{border:1px solid var(--inp-b);border-radius:6px;padding:3px 7px;font-size:.72rem;color:var(--muted);background:var(--inp);font-family:inherit;outline:none;flex:1;min-width:0;}
 .serial-save-btn{flex-shrink:0;border:none;border-radius:6px;padding:3px 10px;font-size:.72rem;background:#16a34a;color:#fff;cursor:pointer;font-family:inherit;font-weight:700;}
 .serial-save-btn:hover{background:#15803d;}
+.serial-repl-btn{flex-shrink:0;border:none;border-radius:6px;padding:3px 9px;font-size:.72rem;background:#f59e0b;color:#fff;cursor:pointer;font-family:inherit;font-weight:700;}
+.repl-tag{font-size:.68rem;color:#b45309;background:#fef3c7;border-radius:6px;padding:2px 7px;margin-bottom:5px;display:inline-block;}
+.repl-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:12px;}
+.repl-box{background:#fff;border-radius:14px;padding:18px 16px;width:100%;max-width:420px;max-height:92vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,.3);}
+.repl-box h3{margin:0 0 4px;font-size:1rem;}
+.repl-box .sub{font-size:.75rem;color:var(--muted);margin-bottom:12px;}
+.repl-box label{display:block;font-size:.7rem;font-weight:700;color:var(--muted);margin:8px 0 3px;}
+.repl-box input{width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--inp-b);border-radius:8px;font-size:.92rem;font-family:inherit;background:var(--inp);color:var(--text);}
+.repl-grid{display:grid;grid-template-columns:70px 1fr 1fr;gap:6px;align-items:end;}
+.repl-grid .u{font-size:.8rem;font-weight:700;padding-bottom:10px;}
+.repl-btns{display:flex;gap:8px;margin-top:14px;}
 .meter-row{display:grid;grid-template-columns:1fr 1fr 48px;gap:6px;align-items:end;}
 .fld label{display:block;font-size:.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;}
 .fld input{width:100%;border:1.5px solid var(--inp-b);border-radius:8px;padding:10px 9px;font-size:1rem;background:var(--inp);outline:none;font-family:'Courier New',monospace;-webkit-appearance:none;color:var(--text);}
@@ -333,6 +344,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="repl-modal" class="repl-ov hidden" onclick="if(event.target===this)closeReplace()"><div class="repl-box" id="repl-box"></div></div>
 
 <script>
 /* ======================================================
@@ -420,6 +432,80 @@ function getPrevMonth(ym) {
   var p = ym.split('-'); var y = parseInt(p[0]); var m = parseInt(p[1]);
   if (m === 1) { y--; m = 12; } else { m--; }
   return y + '-' + (m < 10 ? '0' + m : String(m));
+}
+
+/* ── HEAT TABLE ROWS (shared by Excel + both PDFs; handles meter replacement) ──
+   get(m) -> {cur: readings row of the period | null, prev: previous period IKI | undefined} */
+function heatBlocks(items, get) {
+  function num(v) { return (v === null || v === undefined || v === '') ? null : Number(v); }
+  function R(v)   { return v === null ? null : Math.round(v); }
+  var any = items.some(function(x) { if (!x.m) return false; var c = get(x.m).cur; return c && c.old_final != null; });
+  var blocks = [];
+  var newSerial = '';
+  items.forEach(function(x) { if (!newSerial && x.m && x.m.meter_serial) newSerial = String(x.m.meter_serial); });
+  if (any) {
+    var oldSerial = '', dt = '';
+    var oldRows = items.map(function(x) {
+      if (!x.m) return { unit: x.unit, nuo: null, iki: null, diff: null };
+      var g = get(x.m), c = g.cur;
+      if (c && c.old_final != null) {
+        if (!oldSerial && c.old_serial) oldSerial = String(c.old_serial);
+        if (!dt && c.replaced_on) dt = c.replaced_on;
+        var p = num(g.prev), o = num(c.old_final);
+        return { unit: x.unit, nuo: p, iki: o, diff: p !== null ? R(o - p) : null };
+      }
+      return { unit: x.unit, nuo: null, iki: null, diff: null };
+    });
+    var newRows = items.map(function(x) {
+      if (!x.m) return { unit: x.unit, nuo: null, iki: null, diff: null };
+      var c = get(x.m).cur;
+      var n = c ? num(c.value_from) : null, i = c ? num(c.value_to) : null;
+      return { unit: x.unit, nuo: n, iki: i, diff: (n !== null && i !== null) ? R(i - n) : null };
+    });
+    blocks.push({ serial: oldSerial, rows: oldRows, note: 'Skaitiklis pakeistas' + (dt ? ' ' + dt : '') });
+    blocks.push({ serial: newSerial, rows: newRows, note: 'Naujas skaitiklis' });
+  } else {
+    blocks.push({ serial: newSerial, note: '', rows: items.map(function(x) {
+      if (!x.m) return { unit: x.unit, nuo: null, iki: null, diff: null };
+      var g = get(x.m), c = g.cur;
+      var n = (c && c.value_from != null) ? num(c.value_from) : num(g.prev);
+      var i = (c && c.value_to != null) ? num(c.value_to) : null;
+      return { unit: x.unit, nuo: n, iki: i, diff: (n !== null && i !== null) ? R(i - n + ((extraMap[x.m.id]) || 0)) : null };
+    }) });
+  }
+  return blocks;
+}
+
+/* at = {c, m, w}: attribute strings for centered / middle / wrapped cells */
+function heatRowsHtml(label, blocks, at, minRows) {
+  function e(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function f(v) { return v === null ? '' : String(Math.round(v)); }
+  var h = '';
+  blocks.forEach(function(b) {
+    var n = b.rows.length;
+    var pad = (n === 1 && minRows === 2);
+    var span = pad ? 2 : n;
+    b.rows.forEach(function(r, i) {
+      h += '<tr>';
+      if (i === 0) h += '<td rowspan="' + span + '" ' + at.w + '>' + e(label + b.serial) + '</td>';
+      h += '<td' + (pad ? ' rowspan="2"' : '') + ' ' + at.m + '>' + e(r.unit) + '</td>' +
+           '<td' + (pad ? ' rowspan="2"' : '') + ' ' + (n === 1 ? at.m : at.c) + '>' + f(r.nuo) + '</td>' +
+           '<td' + (pad ? ' rowspan="2"' : '') + ' ' + (n === 1 ? at.m : at.c) + '>' + f(r.iki) + '</td>' +
+           '<td' + (pad ? ' rowspan="2"' : '') + ' ' + (n === 1 ? at.m : at.c) + '>' + f(r.diff) + '</td>';
+      if (i === 0) h += '<td rowspan="' + span + '" ' + at.c + '>' + e(b.note) + '</td>';
+      h += '</tr>';
+      if (pad) h += '<tr></tr>';
+    });
+  });
+  return h;
+}
+
+function heatTableRows(mwhM, m3M, hM, wM, get, at) {
+  var html = heatRowsHtml('Šilumos skaitiklis  Gamyklinis Nr.  ',
+    heatBlocks([{ m: mwhM, unit: 'MWh/kWh' }, { m: m3M, unit: 'm3' }, { m: hM, unit: 'val' }], get), at, 0);
+  if (wM) html += heatRowsHtml('Vandens skaitiklis prieš boilerį  Gamyklinis Nr. ',
+    heatBlocks([{ m: wM, unit: 'm3' }], get), at, 2);
+  return html;
 }
 
 /* ── EXTRA CONSUMPTION (readings.extra_consumption) ──
@@ -760,7 +846,7 @@ function loadApts(addrId) {
       var mIds = meterList.map(function(m) { return m.id; }).join(',');
       /* readings for the active period */
       return sbGet(
-        'readings?select=id,meter_id,value_from,value_to,note' +
+        'readings?select=id,meter_id,value_from,value_to,note,old_serial,old_final,replaced_on' +
         '&meter_id=in.(' + mIds + ')&period=eq.' + activePeriod
       );
     })
@@ -1041,6 +1127,14 @@ function buildMeterRow(label, m, disabled, aptId) {
     })(m, meterList.filter(function(mm) { return mm.apartment_id === m.apartment_id; }));
     serialDiv.appendChild(serialInp);
     serialDiv.appendChild(serialBtn);
+    if (replFamily(m)) {
+      var replBtn = document.createElement('button');
+      replBtn.className   = 'serial-repl-btn';
+      replBtn.textContent = '🔄 Keisti';
+      replBtn.title       = 'Skaitiklio keitimas';
+      replBtn.addEventListener('click', function() { openReplace(m); });
+      serialDiv.appendChild(replBtn);
+    }
   } else if (m.meter_serial) {
     serialDiv.textContent = 'Nr. ' + m.meter_serial;
   }
@@ -1051,6 +1145,14 @@ function buildMeterRow(label, m, disabled, aptId) {
 
   var prevVal = prevR[m.id] !== undefined ? prevR[m.id] : '';
   var currRow = curR[m.id];
+  if (currRow && currRow.old_final != null && currRow.value_from != null) {
+    prevVal = currRow.value_from;   /* replaced meter: NUO = new meter's start reading */
+    var tag = document.createElement('div');
+    tag.className = 'repl-tag';
+    tag.textContent = '🔄 Pakeistas' + (currRow.replaced_on ? ' ' + currRow.replaced_on : '') +
+      (currRow.old_serial ? ' · senas Nr. ' + currRow.old_serial : '') + ' · senas rodmuo ' + currRow.old_final;
+    sec.appendChild(tag);
+  }
   var currVal = currRow ? currRow.value_to : '';
 
   /* NUO */
@@ -2245,35 +2347,8 @@ function downloadHeatReport() {
        '<td style=”'+M+'”>mėn. pradž.</td>' +
        '<td style=”'+M+'”>mėn. gale</td>' +
        '<td style=”'+M+'”>skirtumas</td></tr>';
-  h += '<tr>' +
-       '<td rowspan=”3” style=”'+W+'”>' + eh(heatName) + '</td>' +
-       '<td style=”'+M+'”>MWh/kWh</td>' +
-       '<td style=”'+C+'”>' + fn(mwhNuo) + '</td>' +
-       '<td style=”'+C+'”>' + fn(mwhIki) + '</td>' +
-       '<td style=”'+C+'”>' + fn(mwhDiff) + '</td>' +
-       '<td></td></tr>';
-  h += '<tr>' +
-       '<td style=”'+M+'”>m3</td>' +
-       '<td style=”'+C+'”>' + fn(m3Nuo) + '</td>' +
-       '<td style=”'+C+'”>' + fn(m3Iki) + '</td>' +
-       '<td style=”'+C+'”>' + fn(m3Diff) + '</td>' +
-       '<td></td></tr>';
-  h += '<tr>' +
-       '<td style=”'+M+'”>val</td>' +
-       '<td style=”'+C+'”>' + fn(hNuo) + '</td>' +
-       '<td style=”'+C+'”>' + fn(hIki) + '</td>' +
-       '<td style=”'+C+'”>' + fn(hDiff) + '</td>' +
-       '<td></td></tr>';
-  if (wM !== null) {
-    h += '<tr>' +
-         '<td rowspan=”2” style=”'+W+'”>' + eh(waterName) + '</td>' +
-         '<td rowspan=”2” style=”'+M+'”>m3</td>' +
-         '<td rowspan=”2” style=”'+M+'”>' + fn(wNuo) + '</td>' +
-         '<td rowspan=”2” style=”'+M+'”>' + fn(wIki) + '</td>' +
-         '<td rowspan=”2” style=”'+M+'”>' + fn(wDiff) + '</td>' +
-         '<td rowspan=”2”></td></tr>';
-    h += '<tr></tr>';
-  }
+  h += heatTableRows(mwhM, m3M, hM, wM, function(m) { return { cur: curR[m.id] || null, prev: prevR[m.id] }; },
+    { c: 'style="text-align:center;"', m: 'style="text-align:center;vertical-align:middle;"', w: 'style="text-align:center;vertical-align:middle;word-break:break-word;"' });
   h += '</table>';
 
   /* signature table — no borders */
@@ -2354,15 +2429,8 @@ function downloadHeatPdf() {
     '.lbl{font-size:8pt;color:#333}' +
     '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
 
-  var wRows = '';
-  if (wM !== null) {
-    wRows = '<tr><td rowspan="2" class="w">' + eh(waterName) + '</td>' +
-            '<td rowspan="2" class="m">m3</td>' +
-            '<td rowspan="2" class="m">' + fn(wNuo) + '</td>' +
-            '<td rowspan="2" class="m">' + fn(wIki) + '</td>' +
-            '<td rowspan="2" class="m">' + fn(wDiff) + '</td>' +
-            '<td rowspan="2"></td></tr><tr></tr>';
-  }
+  var rowsHtml = heatTableRows(mwhM, m3M, hM, wM, function(m) { return { cur: curR[m.id] || null, prev: prevR[m.id] }; },
+    { c: 'class="c"', m: 'class="m"', w: 'class="w"' });
 
   var html =
     '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + eh(selAddr.name) + '</title>' +
@@ -2386,14 +2454,7 @@ function downloadHeatPdf() {
         '<td class="m">mėn. pradž.</td>' +
         '<td class="m">mėn. gale</td>' +
         '<td class="m">skirtumas</td></tr>' +
-      '<tr><td rowspan="3" class="w">' + eh(heatName) + '</td>' +
-        '<td class="m">MWh/kWh</td>' +
-        '<td class="c">' + fn(mwhNuo) + '</td><td class="c">' + fn(mwhIki) + '</td><td class="c">' + fn(mwhDiff) + '</td><td></td></tr>' +
-      '<tr><td class="m">m3</td>' +
-        '<td class="c">' + fn(m3Nuo) + '</td><td class="c">' + fn(m3Iki) + '</td><td class="c">' + fn(m3Diff) + '</td><td></td></tr>' +
-      '<tr><td class="m">val</td>' +
-        '<td class="c">' + fn(hNuo) + '</td><td class="c">' + fn(hIki) + '</td><td class="c">' + fn(hDiff) + '</td><td></td></tr>' +
-      wRows +
+      rowsHtml +
     '</table>' +
     '<div class="sig"><div class="sig-block">' +
       '<div class="sig-name">Mindaugas Bukauskas</div>' +
@@ -2440,7 +2501,7 @@ function downloadAllHeatPdf() {
     .then(function(d) {
       var mIds = d.meters.map(function(m) { return m.id; }).join(',');
       return sbGet(
-        'readings?select=meter_id,value_from,value_to&meter_id=in.(' + mIds + ')&period=eq.' + period
+        'readings?select=meter_id,value_from,value_to,old_serial,old_final,replaced_on&meter_id=in.(' + mIds + ')&period=eq.' + period
       ).then(function(curr) { d.curr = curr; return d; });
     })
     .then(function(d) {
@@ -2448,6 +2509,8 @@ function downloadAllHeatPdf() {
       d.prev.forEach(function(r) { if (prevR2[r.meter_id] === undefined) prevR2[r.meter_id] = r.value_to; });
       var curR2 = {};
       d.curr.forEach(function(r) { curR2[r.meter_id] = r.value_to; });
+      var prevRaw = {}; for (var k in prevR2) prevRaw[k] = prevR2[k];
+      var curRows = {}; d.curr.forEach(function(r) { curRows[r.meter_id] = r; });
       /* stored NUO of the period wins (e.g. replaced meter starts from a new value) */
       d.curr.forEach(function(r) { if (r.value_from != null) prevR2[r.meter_id] = r.value_from; });
       var addrMeters = {};
@@ -2457,13 +2520,14 @@ function downloadAllHeatPdf() {
         if (aid && addrMeters[aid]) addrMeters[aid].push(m);
       });
       return loadExtras(period).then(function() {
-        generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period);
+        generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period, curRows, prevRaw);
       });
     })
     .catch(function(e) { toast('Klaida: ' + (e.message || e), 'err'); });
 }
 
-function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period) {
+function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period, curRows, prevRaw) {
+  curRows = curRows || {}; prevRaw = prevRaw || {};
   if (!period) period = activePeriod;
   function eh(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function fn(v) { return (v !== null) ? String(Math.round(v)) : ''; }
@@ -2507,22 +2571,12 @@ function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period) {
       else if (c==='heat_h'  &&!hM)   hM=m;
       else if ((c==='water_m3'||c==='hot_water')&&!wM) wM=m;
     });
-    var mwhN=nuo(mwhM),mwhI=iki(mwhM),mwhD=diff(mwhN,mwhI,mwhM);
-    var m3N=nuo(m3M),  m3I=iki(m3M),  m3D=diff(m3N,m3I,m3M);
-    var hN=nuo(hM),    hI=iki(hM),    hD=diff(hN,hI,hM);
-    var wN=nuo(wM),    wI=iki(wM),    wD=diff(wN,wI,wM);
     var hs = (mwhM&&mwhM.meter_serial) ? String(mwhM.meter_serial) : '';
     var ws = (wM&&wM.meter_serial)     ? String(wM.meter_serial)   : '';
     var hName = 'Šilumos skaitiklis  Gamyklinis Nr.  ' + hs;
     var wName = 'Vandens skaitiklis prieš boilerį  Gamyklinis Nr. ' + ws;
-    var wRows = wM ? (
-      '<tr><td rowspan="2" class="w">' + eh(wName) + '</td>' +
-      '<td rowspan="2" class="m">m3</td>' +
-      '<td rowspan="2" class="m">' + fn(wN) + '</td>' +
-      '<td rowspan="2" class="m">' + fn(wI) + '</td>' +
-      '<td rowspan="2" class="m">' + fn(wD) + '</td>' +
-      '<td rowspan="2"></td></tr><tr></tr>'
-    ) : '';
+    var rowsHtml = heatTableRows(mwhM, m3M, hM, wM, function(m) { return { cur: curRows[m.id] || null, prev: prevRaw[m.id] }; },
+      { c: 'class="c"', m: 'class="m"', w: 'class="w"' });
     return '<div class="page">' +
       '<table cellpadding="2"><tr>' +
         '<td colspan="3"></td>' +
@@ -2539,14 +2593,7 @@ function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period) {
           '<td colspan="3" class="c">Prietaisų parodymai</td>' +
           '<td rowspan="2" class="m">Pastabos</td></tr>' +
         '<tr><td class="m">mėn. pradž.</td><td class="m">mėn. gale</td><td class="m">skirtumas</td></tr>' +
-        '<tr><td rowspan="3" class="w">' + eh(hName) + '</td>' +
-          '<td class="m">MWh/kWh</td>' +
-          '<td class="c">' + fn(mwhN) + '</td><td class="c">' + fn(mwhI) + '</td><td class="c">' + fn(mwhD) + '</td><td></td></tr>' +
-        '<tr><td class="m">m3</td>' +
-          '<td class="c">' + fn(m3N) + '</td><td class="c">' + fn(m3I) + '</td><td class="c">' + fn(m3D) + '</td><td></td></tr>' +
-        '<tr><td class="m">val</td>' +
-          '<td class="c">' + fn(hN) + '</td><td class="c">' + fn(hI) + '</td><td class="c">' + fn(hD) + '</td><td></td></tr>' +
-        wRows +
+        rowsHtml +
       '</table>' +
       '<div class="sig"><div class="sig-block">' +
         '<div class="sig-name">Mindaugas Bukauskas</div>' +
@@ -2565,6 +2612,119 @@ function generateCombinedHeatPdf(heatAddrs, addrMeters, prevR2, curR2, period) {
   var w = window.open('', '_blank', 'width=900,height=700');
   if (w) { w.document.write(html); w.document.close(); }
   else toast('Naršyklė blokavo langą — leiskite popup', 'err');
+}
+
+
+/* ── METER REPLACEMENT (heat + water) ─────────────── */
+function replFamily(m) {
+  var c = m.meter_types && m.meter_types.code;
+  if (!c) return null;
+  if (c.indexOf('heat_') === 0) return 'heat';
+  if (c === 'water_m3' || c === 'hot_water') return 'water';
+  return null;
+}
+var REPL_UNIT = { heat_mwh: 'MWh/kWh', heat_m3: 'm³', heat_h: 'val', water_m3: 'm³', hot_water: 'm³' };
+var replGroup = [];
+
+function openReplace(m) {
+  var fam = replFamily(m);
+  replGroup = meterList.filter(function(x) { return x.apartment_id === m.apartment_id && replFamily(x) === fam; });
+  var cur0 = curR[replGroup[0].id];
+  var already = replGroup.some(function(x) { return curR[x.id] && curR[x.id].old_final != null; });
+  var today = new Date();
+  var dflt = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  if (dflt.slice(0, 7) !== activePeriod) dflt = activePeriod + '-01';
+  var dt = (already && cur0 && cur0.replaced_on) ? cur0.replaced_on : dflt;
+  var serial = replGroup[0].meter_serial || '';
+  var rowsH = '';
+  replGroup.forEach(function(x) {
+    var c = curR[x.id], isRepl = c && c.old_final != null;
+    var code = x.meter_types.code;
+    rowsH += '<div class="repl-grid"><div class="u">' + (REPL_UNIT[code] || '') + '</div>' +
+      '<div><label>Senas rodmuo (nuimant)</label><input type="number" inputmode="decimal" id="repl-old-' + x.id + '" value="' + (isRepl ? c.old_final : '') + '"></div>' +
+      '<div><label>Naujo pradinis</label><input type="number" inputmode="decimal" id="repl-new-' + x.id + '" value="' + (isRepl && c.value_from != null ? c.value_from : '') + '"></div></div>';
+  });
+  document.getElementById('repl-box').innerHTML =
+    '<h3>🔄 Skaitiklio keitimas</h3>' +
+    '<div class="sub">' + esc(selAddr ? selAddr.name : '') + ' · ' + esc(periodToLabel(activePeriod)) + '</div>' +
+    '<label>Pakeitimo data</label><input type="date" id="repl-date" value="' + esc(dt) + '">' +
+    '<label>Naujo skaitiklio gamyklinis Nr.</label><input type="text" id="repl-serial" value="' + esc(already ? serial : '') + '" placeholder="Naujas Nr.">' +
+    '<label style="margin-top:12px;">Rodmenys</label>' + rowsH +
+    '<div class="sub" style="margin-top:8px;">Seno skaitiklio paskutinis rodmuo ir naujo skaitiklio pradinis rodmuo (nebūtinai 0).' +
+    (already ? ' Senas Nr. ir seno skaitiklio duomenys išsaugoti.' : '') + '</div>' +
+    '<div class="repl-btns">' +
+      '<button class="back-btn" style="flex:1;" onclick="closeReplace()">Atšaukti</button>' +
+      (already ? '<button class="back-btn" style="flex:1;color:#dc2626;" onclick="undoReplace()">Panaikinti keitimą</button>' : '') +
+      '<button class="heat-excel-btn" style="flex:2;" id="repl-save" onclick="saveReplace()">Išsaugoti</button>' +
+    '</div>';
+  document.getElementById('repl-modal').classList.remove('hidden');
+}
+
+function closeReplace() { document.getElementById('repl-modal').classList.add('hidden'); }
+
+function saveReplace() {
+  var newSerial = document.getElementById('repl-serial').value.trim();
+  var dt = document.getElementById('repl-date').value;
+  if (!newSerial) { toast('Įveskite naujo skaitiklio Nr.!', 'er'); return; }
+  if (!dt) { toast('Nurodykite pakeitimo datą!', 'er'); return; }
+  var oldSerial = '';
+  replGroup.forEach(function(x) {
+    var c = curR[x.id];
+    if (!oldSerial) oldSerial = (c && c.old_final != null && c.old_serial) ? c.old_serial : (x.meter_serial || '');
+  });
+  var items = [];
+  for (var i = 0; i < replGroup.length; i++) {
+    var x = replGroup[i];
+    var oEl = document.getElementById('repl-old-' + x.id), nEl = document.getElementById('repl-new-' + x.id);
+    var o = parseFloat(oEl.value), n = parseFloat(nEl.value);
+    if (isNaN(o) || isNaN(n)) { toast('Užpildykite visus rodmenis!', 'er'); return; }
+    var prev = prevR[x.id];
+    if (prev !== undefined && o < Number(prev)) { toast('Senas rodmuo (' + o + ') mažesnis už praėjusio mėnesio (' + prev + ')!', 'er'); return; }
+    items.push({ m: x, o: o, n: n });
+  }
+  var btn = document.getElementById('repl-save');
+  btn.textContent = '…'; btn.disabled = true;
+  var chain = Promise.resolve();
+  var clearedIki = false;
+  items.forEach(function(it) {
+    chain = chain.then(function() {
+      var ex = curR[it.m.id];
+      var keepIki = ex && ex.value_to != null ? Number(ex.value_to) : null;
+      if (keepIki !== null && keepIki < it.n) { keepIki = null; clearedIki = true; }
+      var body = { value_from: it.n, value_to: keepIki, old_serial: oldSerial || null, old_final: it.o, replaced_on: dt };
+      if (ex) return sbPatch('readings?id=eq.' + ex.id, body);
+      body.meter_id = it.m.id; body.period = activePeriod; body.note = '';
+      return sbPost('readings', body);
+    }).then(function() {
+      return sbPatch('meters?id=eq.' + it.m.id, { meter_serial: newSerial });
+    });
+  });
+  chain.then(function() {
+    closeReplace();
+    toast('Skaitiklio keitimas išsaugotas!' + (clearedIki ? ' IKI išvalytas – įveskite naujo skaitiklio rodmenį.' : ''), 'ok');
+    loadApts(selAddr.id);
+  }).catch(function(e) {
+    btn.textContent = 'Išsaugoti'; btn.disabled = false;
+    toast('Klaida: ' + e.message, 'er');
+  });
+}
+
+function undoReplace() {
+  if (!confirm('Panaikinti skaitiklio keitimą šį mėnesį? NUO grįš prie praėjusio mėnesio IKI.')) return;
+  var chain = Promise.resolve();
+  replGroup.forEach(function(x) {
+    var c = curR[x.id];
+    if (!c || c.old_final == null) return;
+    chain = chain.then(function() {
+      var prev = prevR[x.id];
+      return sbPatch('readings?id=eq.' + c.id, {
+        value_from: prev !== undefined ? prev : c.value_from, old_serial: null, old_final: null, replaced_on: null });
+    }).then(function() {
+      if (c.old_serial) return sbPatch('meters?id=eq.' + x.id, { meter_serial: c.old_serial });
+    });
+  });
+  chain.then(function() { closeReplace(); toast('Keitimas panaikintas', 'ok'); loadApts(selAddr.id); })
+       .catch(function(e) { toast('Klaida: ' + e.message, 'er'); });
 }
 
 /* ── CSV EXPORT ───────────────────────────────────── */

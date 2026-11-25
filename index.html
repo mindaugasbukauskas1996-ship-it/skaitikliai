@@ -1127,16 +1127,19 @@ function buildMeterRow(label, m, disabled, aptId) {
     })(m, meterList.filter(function(mm) { return mm.apartment_id === m.apartment_id; }));
     serialDiv.appendChild(serialInp);
     serialDiv.appendChild(serialBtn);
-    if (replFamily(m)) {
-      var replBtn = document.createElement('button');
-      replBtn.className   = 'serial-repl-btn';
-      replBtn.textContent = '🔄 Keisti';
-      replBtn.title       = 'Skaitiklio keitimas';
-      replBtn.addEventListener('click', function() { openReplace(m); });
-      serialDiv.appendChild(replBtn);
-    }
   } else if (m.meter_serial) {
-    serialDiv.textContent = 'Nr. ' + m.meter_serial;
+    var serialTxt = document.createElement('span');
+    serialTxt.style.flex = '1';
+    serialTxt.textContent = 'Nr. ' + m.meter_serial;
+    serialDiv.appendChild(serialTxt);
+  }
+  if (replFamily(m)) {
+    var replBtn = document.createElement('button');
+    replBtn.className   = 'serial-repl-btn';
+    replBtn.textContent = '🔄 Keisti skaitiklį';
+    replBtn.title       = 'Skaitiklio keitimas';
+    replBtn.addEventListener('click', function() { openReplace(m); });
+    serialDiv.appendChild(replBtn);
   }
   sec.appendChild(serialDiv);
 
